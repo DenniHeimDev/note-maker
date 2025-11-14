@@ -9,9 +9,11 @@ services:
       DISPLAY: "${DISPLAY:-:0}"
       HOST_INPUT_DIR: "/host/input"
       HOST_OUTPUT_DIR: "/host/output"
+      HOST_COPY_DIR: "/host/copies"
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
       - ${HOST_INPUT_PATH}:/host/input
       - ${HOST_OUTPUT_PATH}:/host/output
+      - ${HOST_COPY_PATH}:/host/copies
     working_dir: /app
     command: ["python", "_main.py"]

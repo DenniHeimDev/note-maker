@@ -11,7 +11,7 @@ import fitz  # PyMuPDF
 from pptx import Presentation
 from openai import OpenAI
 
-MODEL_NAME = "gpt-4.1"
+MODEL_NAME = "gpt-5"
 SYSTEM_PROMPT = (
     "Du er ein fagleg dyktig skribent som skriv klart og presist på nynorsk.\n"
     "Du får tekst frå ei fagleg presentasjon (PowerPoint eller PDF) og skal lage\n"
@@ -118,6 +118,7 @@ class NoteMakerApp:
 
         self.input_mount = Path(os.environ.get("HOST_INPUT_DIR", "/host/input"))
         self.output_mount = Path(os.environ.get("HOST_OUTPUT_DIR", "/host/output"))
+        self.copy_mount = Path(os.environ.get("HOST_COPY_DIR", "/host/copies"))
         self.file_path = tk.StringVar()
         default_output = str(
             self.output_mount if self.output_mount.exists() else Path.home()
@@ -208,6 +209,8 @@ class NoteMakerApp:
         if not Path(file_path).exists():
             messagebox.showerror("Fil finst ikkje", "Den valde fila vart ikkje funnen.")
             return
+        copy_dir = str(self.copy_mount) if self.copy_mount.exists() else output_dir
+
         if not output_dir:
             messagebox.showwarning("Manglar mappe", "Vel lagringsmappe før du held fram.")
             return
@@ -216,7 +219,7 @@ class NoteMakerApp:
         self.log_message("Startar generering av notat ...")
         thread = threading.Thread(
             target=self._process_workflow,
-            args=(file_path, output_dir, self.copy_source.get()),
+            args=(file_path, output_dir, copy_dir, self.copy_source.get()),
             daemon=True,
         )
         thread.start()
@@ -225,7 +228,9 @@ class NoteMakerApp:
         new_state = "disabled" if is_processing else "normal"
         self.process_button.config(state=new_state)
 
-    def _process_workflow(self, file_path: str, output_dir: str, copy_requested: bool) -> None:
+    def _process_workflow(
+        self, file_path: str, output_dir: str, copy_dir: str, copy_requested: bool
+    ) -> None:
         try:
             self.log_message("Hentar tekst frå fila ...")
             extracted_text = extract_text(file_path)
@@ -235,8 +240,8 @@ class NoteMakerApp:
             self.log_message(f"Notat lagra som: {note_path}")
             copied_path = None
             if copy_requested:
-                self.log_message("Kopierer presentasjonen til lagringsmappa ...")
-                copied_path = copy_source_file(file_path, output_dir)
+                self.log_message("Kopierer presentasjonen til eksportmappa ...")
+                copied_path = copy_source_file(file_path, copy_dir)
                 self.log_message(f"Kopierte presentasjonen til {copied_path}")
 
             def success_message() -> None:
