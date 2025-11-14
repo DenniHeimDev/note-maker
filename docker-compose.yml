@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  note-maker:
+    build:
+      context: .
+    environment:
+      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+      DISPLAY: "${DISPLAY:-:0}"
+      HOST_INPUT_DIR: "/host/input"
+      HOST_OUTPUT_DIR: "/host/output"
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ${HOST_INPUT_PATH}:/host/input
+      - ${HOST_OUTPUT_PATH}:/host/output
+    working_dir: /app
+    command: ["python", "_main.py"]

@@ -116,8 +116,13 @@ class NoteMakerApp:
         self.root.title("Nynorsk notatgenerator for presentasjonar")
         self.root.geometry("900x650")
 
+        self.input_mount = Path(os.environ.get("HOST_INPUT_DIR", "/host/input"))
+        self.output_mount = Path(os.environ.get("HOST_OUTPUT_DIR", "/host/output"))
         self.file_path = tk.StringVar()
-        self.output_dir = tk.StringVar()
+        default_output = str(
+            self.output_mount if self.output_mount.exists() else Path.home()
+        )
+        self.output_dir = tk.StringVar(value=default_output)
         self.copy_source = tk.BooleanVar(value=False)
 
         self._build_layout()
@@ -178,13 +183,17 @@ class NoteMakerApp:
         selected = filedialog.askopenfilename(
             title="Vel ei presentasjonsfil",
             filetypes=filetypes,
+            initialdir=self._initial_dir(self.input_mount),
         )
         if selected:
             self.file_path.set(selected)
             self.log_message(f"Valde fil: {selected}")
 
     def choose_output_dir(self) -> None:
-        selected = filedialog.askdirectory(title="Vel lagringsmappe")
+        selected = filedialog.askdirectory(
+            title="Vel lagringsmappe",
+            initialdir=self._initial_dir(self.output_mount),
+        )
         if selected:
             self.output_dir.set(selected)
             self.log_message(f"Valde lagringsmappe: {selected}")
@@ -253,6 +262,10 @@ class NoteMakerApp:
         timestamp = datetime.now().strftime("%H:%M:%S")
         self.root.after(0, lambda: self._append_log(f"[{timestamp}] {message}"))
 
+    def _initial_dir(self, mount_path: Path) -> str:
+        if mount_path.exists():
+            return str(mount_path)
+        return os.getcwd()
     def _append_log(self, message: str) -> None:
         self.log_widget.configure(state="normal")
         self.log_widget.insert(tk.END, message + "\n")
