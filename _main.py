@@ -8,6 +8,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 
 import fitz  # PyMuPDF
+from dotenv import load_dotenv
 from pptx import Presentation
 from openai import OpenAI
 
@@ -27,6 +28,8 @@ USER_PROMPT_TEMPLATE = (
     "{tekst_her}\n"
     "=== SLUTT AV INPUT ==="
 )
+
+load_dotenv()
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY)
@@ -127,13 +130,22 @@ class NoteMakerApp:
         self.copy_source = tk.BooleanVar(value=False)
 
         self._build_layout()
+        self.update_api_key_status()
 
     def _build_layout(self) -> None:
         self.root.columnconfigure(0, weight=1)
-        self.root.rowconfigure(2, weight=1)
+        self.root.rowconfigure(3, weight=1)
+
+        status_frame = ttk.LabelFrame(self.root, text="OpenAI API-nøkkel")
+        status_frame.grid(row=0, column=0, padx=12, pady=(12, 6), sticky="ew")
+        status_frame.columnconfigure(1, weight=1)
+
+        ttk.Label(status_frame, text="Status:").grid(row=0, column=0, padx=6, pady=6, sticky="w")
+        self.api_status_label = tk.Label(status_frame, anchor="w", font=("TkDefaultFont", 10, "bold"))
+        self.api_status_label.grid(row=0, column=1, padx=6, pady=6, sticky="w")
 
         file_frame = ttk.LabelFrame(self.root, text="1. Vel presentasjonsfil")
-        file_frame.grid(row=0, column=0, padx=12, pady=(12, 6), sticky="ew")
+        file_frame.grid(row=1, column=0, padx=12, pady=6, sticky="ew")
         file_frame.columnconfigure(1, weight=1)
 
         ttk.Label(file_frame, text="Fil:").grid(row=0, column=0, padx=6, pady=6, sticky="w")
@@ -144,7 +156,7 @@ class NoteMakerApp:
         )
 
         output_frame = ttk.LabelFrame(self.root, text="2. Vel lagringsmappe")
-        output_frame.grid(row=1, column=0, padx=12, pady=6, sticky="ew")
+        output_frame.grid(row=2, column=0, padx=12, pady=6, sticky="ew")
         output_frame.columnconfigure(1, weight=1)
 
         ttk.Label(output_frame, text="Mappe:").grid(row=0, column=0, padx=6, pady=6, sticky="w")
@@ -160,13 +172,8 @@ class NoteMakerApp:
             variable=self.copy_source,
         ).grid(row=1, column=0, columnspan=3, padx=6, pady=(0, 6), sticky="w")
 
-        self.process_button = ttk.Button(
-            self.root, text="3. Generer nynorsk notat", command=self.start_processing
-        )
-        self.process_button.grid(row=3, column=0, padx=12, pady=6, sticky="ew")
-
         log_frame = ttk.LabelFrame(self.root, text="Status og logg")
-        log_frame.grid(row=2, column=0, padx=12, pady=6, sticky="nsew")
+        log_frame.grid(row=3, column=0, padx=12, pady=6, sticky="nsew")
         log_frame.rowconfigure(0, weight=1)
         log_frame.columnconfigure(0, weight=1)
 
@@ -174,6 +181,23 @@ class NoteMakerApp:
             log_frame, state="disabled", wrap="word", height=15
         )
         self.log_widget.grid(row=0, column=0, sticky="nsew", padx=6, pady=6)
+
+        self.process_button = ttk.Button(
+            self.root, text="3. Generer nynorsk notat", command=self.start_processing
+        )
+        self.process_button.grid(row=4, column=0, padx=12, pady=(0, 6), sticky="ew")
+
+    def update_api_key_status(self) -> None:
+        has_key = bool(OPENAI_API_KEY)
+        if has_key:
+            symbol = "✓"
+            message = "API-nøkkel funnen"
+            color = "green"
+        else:
+            symbol = "✗"
+            message = "API-nøkkel manglar"
+            color = "red"
+        self.api_status_label.config(text=f"{symbol} {message}", foreground=color)
 
     def choose_file(self) -> None:
         filetypes = [

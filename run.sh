@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ -z "${OPENAI_API_KEY:-}" ]]; then
-  echo "Feil: OPENAI_API_KEY er ikkje sett i miljøet." >&2
-  echo "Eksporter nøkkelen før du køyrer skriptet, t.d.:" >&2
-  echo "  export OPENAI_API_KEY=sk-..." >&2
-  exit 1
-fi
+#if [[ -z "${OPENAI_API_KEY:-}" ]]; then
+#  echo "Feil: OPENAI_API_KEY er ikkje sett i miljøet." >&2
+#  echo "Eksporter nøkkelen før du køyrer skriptet, t.d.:" >&2
+#  echo "  export OPENAI_API_KEY=sk-..." >&2
+#  exit 1
+#fi
 
 HOST_INPUT_PATH_DEFAULT="${HOST_INPUT_PATH:-/mnt/c/Users/denni/Downloads}"
 HOST_OUTPUT_PATH_DEFAULT="${HOST_OUTPUT_PATH:-"/mnt/c/Users/denni/Telia Sky/Obsidian/DenniHeim's Vault/1. Projects/FORKURS"}"
