@@ -4,8 +4,9 @@ import shutil
 import threading
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 import tkinter as tk
-from tkinter import filedialog, messagebox, scrolledtext, ttk
+from tkinter import filedialog, messagebox, scrolledtext, simpledialog, ttk
 
 import fitz  # PyMuPDF
 from dotenv import load_dotenv
@@ -31,8 +32,44 @@ USER_PROMPT_TEMPLATE = (
 
 load_dotenv()
 
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-client = OpenAI(api_key=OPENAI_API_KEY)
+
+def _ensure_api_key() -> Optional[str]:
+    """
+    Returns the OpenAI API key from the environment, falling back to plain-text .env files.
+    Supports both standard KEY=VALUE files and files that only contain the key value.
+    """
+    existing = os.environ.get("OPENAI_API_KEY")
+    if existing:
+        return existing
+
+    candidate_paths = [
+        Path(".env"),
+        Path(__file__).with_name(".env"),
+    ]
+
+    for path in candidate_paths:
+        if not path.exists():
+            continue
+        with path.open(encoding="utf-8") as handle:
+            for line in handle:
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#"):
+                    continue
+                if "=" in stripped:
+                    _, value = stripped.split("=", 1)
+                    candidate = value.strip().strip("'\"")
+                else:
+                    candidate = stripped
+                if candidate:
+                    os.environ["OPENAI_API_KEY"] = candidate
+                    return candidate
+    return None
+
+
+OPENAI_API_KEY = _ensure_api_key()
+client: Optional[OpenAI] = None
+if OPENAI_API_KEY:
+    client = OpenAI(api_key=OPENAI_API_KEY)
 
 
 def extract_text_from_pptx(file_path: str) -> str:
@@ -83,6 +120,8 @@ def generate_note_from_text(text: str) -> str:
         raise RuntimeError("Miljøvariabelen OPENAI_API_KEY er ikkje sett.")
     if not text.strip():
         raise ValueError("Fann ikkje tekst i den valde fila.")
+    if client is None:
+        raise RuntimeError("Fann ikkje klient for OpenAI. Kontroller API-nøkkelen.")
     user_prompt = USER_PROMPT_TEMPLATE.format(tekst_her=text.strip())
     response = client.chat.completions.create(
         model=MODEL_NAME,
@@ -108,7 +147,19 @@ def save_note_text(note_text: str, output_dir: str, source_file: str) -> Path:
 
 
 def copy_source_file(source_file: str, output_dir: str) -> Path:
-    destination = Path(output_dir) / Path(source_file).name
+    destination_dir = Path(output_dir)
+    destination_dir.mkdir(parents=True, exist_ok=True)
+
+    original_name = Path(source_file).name
+    stem = Path(original_name).stem
+    suffix = Path(original_name).suffix
+    destination = destination_dir / original_name
+
+    counter = 1
+    while destination.exists():
+        destination = destination_dir / f"{stem}_kopi_{counter}{suffix}"
+        counter += 1
+
     shutil.copy2(source_file, destination)
     return destination
 
@@ -165,6 +216,9 @@ class NoteMakerApp:
         ttk.Button(output_frame, text="Vel mappe", command=self.choose_output_dir).grid(
             row=0, column=2, padx=6, pady=6
         )
+        ttk.Button(
+            output_frame, text="Ny mappe", command=self.create_and_select_new_folder
+        ).grid(row=0, column=3, padx=6, pady=6)
 
         ttk.Checkbutton(
             output_frame,
@@ -188,7 +242,7 @@ class NoteMakerApp:
         self.process_button.grid(row=4, column=0, padx=12, pady=(0, 6), sticky="ew")
 
     def update_api_key_status(self) -> None:
-        has_key = bool(OPENAI_API_KEY)
+        has_key = bool(os.environ.get("OPENAI_API_KEY"))
         if has_key:
             symbol = "✓"
             message = "API-nøkkel funnen"
@@ -223,6 +277,33 @@ class NoteMakerApp:
             self.output_dir.set(selected)
             self.log_message(f"Valde lagringsmappe: {selected}")
 
+    def create_and_select_new_folder(self) -> None:
+        parent_dir = filedialog.askdirectory(
+            title="Vel foreldremappe der ny mappe skal opprettast",
+            initialdir=self._initial_dir(self.output_mount),
+        )
+        if not parent_dir:
+            return
+        folder_name = simpledialog.askstring(
+            "Ny mappe", "Skriv namnet på den nye mappa:", parent=self.root
+        )
+        if not folder_name:
+            return
+        new_folder = Path(parent_dir) / folder_name
+        if new_folder.exists():
+            messagebox.showerror(
+                "Mappe finst frå før",
+                f"Mappa {new_folder} finst allereie. Vel eit anna namn.",
+            )
+            return
+        try:
+            new_folder.mkdir(parents=True, exist_ok=False)
+        except Exception as exc:
+            messagebox.showerror("Kunne ikkje lage mappe", f"Feil ved oppretting:\n{exc}")
+            return
+        self.output_dir.set(str(new_folder))
+        self.log_message(f"Laga og valde ny lagringsmappe: {new_folder}")
+
     def start_processing(self) -> None:
         file_path = self.file_path.get()
         output_dir = self.output_dir.get()
@@ -233,7 +314,9 @@ class NoteMakerApp:
         if not Path(file_path).exists():
             messagebox.showerror("Fil finst ikkje", "Den valde fila vart ikkje funnen.")
             return
-        copy_dir = str(self.copy_mount) if self.copy_mount.exists() else output_dir
+        copy_dir = None
+        if self.copy_source.get():
+            copy_dir = self._copy_directory_for_session(output_dir)
 
         if not output_dir:
             messagebox.showwarning("Manglar mappe", "Vel lagringsmappe før du held fram.")
@@ -253,7 +336,7 @@ class NoteMakerApp:
         self.process_button.config(state=new_state)
 
     def _process_workflow(
-        self, file_path: str, output_dir: str, copy_dir: str, copy_requested: bool
+        self, file_path: str, output_dir: str, copy_dir: Optional[str], copy_requested: bool
     ) -> None:
         try:
             self.log_message("Hentar tekst frå fila ...")
@@ -265,7 +348,8 @@ class NoteMakerApp:
             copied_path = None
             if copy_requested:
                 self.log_message("Kopierer presentasjonen til eksportmappa ...")
-                copied_path = copy_source_file(file_path, copy_dir)
+                target_dir = copy_dir or self._copy_directory_for_session(output_dir)
+                copied_path = copy_source_file(file_path, target_dir)
                 self.log_message(f"Kopierte presentasjonen til {copied_path}")
 
             def success_message() -> None:
@@ -295,6 +379,15 @@ class NoteMakerApp:
         if mount_path.exists():
             return str(mount_path)
         return os.getcwd()
+
+    def _copy_directory_for_session(self, output_dir: str) -> str:
+        if self.copy_mount.exists():
+            target = self.copy_mount
+        else:
+            target = Path(output_dir) / "kopierte_presentasjonar"
+        target.mkdir(parents=True, exist_ok=True)
+        return str(target)
+
     def _append_log(self, message: str) -> None:
         self.log_widget.configure(state="normal")
         self.log_widget.insert(tk.END, message + "\n")

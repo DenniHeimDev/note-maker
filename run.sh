@@ -1,12 +1,48 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-#if [[ -z "${OPENAI_API_KEY:-}" ]]; then
-#  echo "Feil: OPENAI_API_KEY er ikkje sett i miljøet." >&2
-#  echo "Eksporter nøkkelen før du køyrer skriptet, t.d.:" >&2
-#  echo "  export OPENAI_API_KEY=sk-..." >&2
-#  exit 1
-#fi
+ensure_openai_key() {
+  if [[ -n "${OPENAI_API_KEY:-}" ]]; then
+    return
+  fi
+
+  local key
+  key="$(python3 - <<'PY'
+from pathlib import Path
+
+def read_key(path: Path):
+    with path.open(encoding="utf-8") as handle:
+        for raw_line in handle:
+            stripped = raw_line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            if "=" in stripped:
+                name, value = stripped.split("=", 1)
+                if name.strip() != "OPENAI_API_KEY":
+                    continue
+                candidate = value.strip().strip("'\"")
+                if candidate:
+                    return candidate
+            else:
+                return stripped
+    return None
+
+for candidate in (Path(".env"), Path("_main.env")):
+    if not candidate.exists():
+        continue
+    value = read_key(candidate)
+    if value:
+        print(value, end="")
+        break
+PY
+)"
+
+  if [[ -n "${key:-}" ]]; then
+    export OPENAI_API_KEY="$key"
+  fi
+}
+
+ensure_openai_key
 
 HOST_INPUT_PATH_DEFAULT="${HOST_INPUT_PATH:-/mnt/c/Users/denni/Downloads}"
 HOST_OUTPUT_PATH_DEFAULT="${HOST_OUTPUT_PATH:-"/mnt/c/Users/denni/Telia Sky/Obsidian/DenniHeim's Vault/1. Projects/FORKURS"}"
