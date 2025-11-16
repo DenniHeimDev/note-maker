@@ -13,18 +13,25 @@ from dotenv import load_dotenv
 from pptx import Presentation
 from openai import OpenAI
 
-MODEL_NAME = "gpt-5"
+AVAILABLE_MODELS = [
+    "gpt-5",
+    "gpt-5.1",
+    "gpt-4.1",
+    "gpt-4.1-mini",
+    "gpt-5-mini",
+]
+DEFAULT_MODEL = "gpt-5.1"
 SYSTEM_PROMPT = (
     "Du er ein fagleg dyktig skribent som skriv klart og presist på nynorsk.\n"
     "Du får tekst frå ei fagleg presentasjon (PowerPoint eller PDF) og skal lage\n"
-    "eit strukturert notat på nynorsk. Behald fagterminologi, bruk overskrifter\n"
+    "eit strukturert notat på nynorsk. Behald fagterminologi, ikkje oversett direkte til norsk vist det står på engelsk, bruk overskrifter\n"
     "og underoverskrifter der det passar, og skriv i ein stil som eignar seg\n"
     "som førebuing til undervisning eller eksamen."
 )
 USER_PROMPT_TEMPLATE = (
     "Her er innhaldet frå presentasjonen. Lag eit strukturert notat på nynorsk\n"
-    "som oppsummerer og forklarer innhaldet. Du skal ikkje referere til \"slides\"\n"
-    "eller \"bilete\", berre skrive eit samanhengande notat.\n\n"
+    "som oppsummerer og forklarer innhaldet.Du skal ikkje referere til \"slides\"\n"
+    "eller \"bilete\", berre skrive eit samanhengande notat i markdown format.\n\n"
     "=== START AV INPUT ===\n"
     "{tekst_her}\n"
     "=== SLUTT AV INPUT ==="
@@ -115,16 +122,18 @@ def extract_text(file_path: str) -> str:
     raise ValueError("Ukjend filtype. Vel ei .pptx- eller .pdf-fil.")
 
 
-def generate_note_from_text(text: str) -> str:
+def generate_note_from_text(text: str, model_name: str) -> str:
     if not OPENAI_API_KEY:
         raise RuntimeError("Miljøvariabelen OPENAI_API_KEY er ikkje sett.")
     if not text.strip():
         raise ValueError("Fann ikkje tekst i den valde fila.")
     if client is None:
         raise RuntimeError("Fann ikkje klient for OpenAI. Kontroller API-nøkkelen.")
+    if model_name not in AVAILABLE_MODELS:
+        raise ValueError(f"Ugyldig modell: {model_name}.")
     user_prompt = USER_PROMPT_TEMPLATE.format(tekst_her=text.strip())
     response = client.chat.completions.create(
-        model=MODEL_NAME,
+        model=model_name,
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
@@ -179,8 +188,14 @@ class NoteMakerApp:
         )
         self.output_dir = tk.StringVar(value=default_output)
         self.copy_source = tk.BooleanVar(value=False)
+        default_copy_dir = self._default_copy_directory_string(default_output)
+        self.copy_destination = tk.StringVar(value=default_copy_dir)
+        default_model = DEFAULT_MODEL if DEFAULT_MODEL in AVAILABLE_MODELS else AVAILABLE_MODELS[0]
+        self.model_name = tk.StringVar(value=default_model)
+        self.copy_source.trace_add("write", lambda *_: self._update_copy_controls_state())
 
         self._build_layout()
+        self._update_copy_controls_state()
         self.update_api_key_status()
 
     def _build_layout(self) -> None:
@@ -194,6 +209,14 @@ class NoteMakerApp:
         ttk.Label(status_frame, text="Status:").grid(row=0, column=0, padx=6, pady=6, sticky="w")
         self.api_status_label = tk.Label(status_frame, anchor="w", font=("TkDefaultFont", 10, "bold"))
         self.api_status_label.grid(row=0, column=1, padx=6, pady=6, sticky="w")
+        ttk.Label(status_frame, text="Modell:").grid(row=1, column=0, padx=6, pady=6, sticky="w")
+        self.model_selector = ttk.Combobox(
+            status_frame,
+            textvariable=self.model_name,
+            values=AVAILABLE_MODELS,
+            state="readonly",
+        )
+        self.model_selector.grid(row=1, column=1, padx=6, pady=6, sticky="ew")
 
         file_frame = ttk.LabelFrame(self.root, text="1. Vel presentasjonsfil")
         file_frame.grid(row=1, column=0, padx=12, pady=6, sticky="ew")
@@ -225,6 +248,23 @@ class NoteMakerApp:
             text="Kopier presentasjonen til lagringsmappa",
             variable=self.copy_source,
         ).grid(row=1, column=0, columnspan=3, padx=6, pady=(0, 6), sticky="w")
+
+        copy_dest_frame = ttk.Frame(output_frame)
+        copy_dest_frame.grid(row=2, column=0, columnspan=4, padx=6, pady=(0, 6), sticky="ew")
+        copy_dest_frame.columnconfigure(1, weight=1)
+        ttk.Label(copy_dest_frame, text="Kopimappe:").grid(row=0, column=0, padx=(0, 6), pady=4, sticky="w")
+        self.copy_destination_entry = ttk.Entry(
+            copy_dest_frame,
+            textvariable=self.copy_destination,
+            state="readonly",
+        )
+        self.copy_destination_entry.grid(row=0, column=1, padx=(0, 6), pady=4, sticky="ew")
+        self.copy_dir_button = ttk.Button(
+            copy_dest_frame,
+            text="Vel mappe",
+            command=self.choose_copy_directory,
+        )
+        self.copy_dir_button.grid(row=0, column=2, padx=(0, 6), pady=4)
 
         log_frame = ttk.LabelFrame(self.root, text="Status og logg")
         log_frame.grid(row=3, column=0, padx=12, pady=6, sticky="nsew")
@@ -277,6 +317,20 @@ class NoteMakerApp:
             self.output_dir.set(selected)
             self.log_message(f"Valde lagringsmappe: {selected}")
 
+    def choose_copy_directory(self) -> None:
+        initial_dir = self.copy_destination.get() or self._default_copy_directory_string(self.output_dir.get())
+        if initial_dir and Path(initial_dir).exists():
+            start_dir = initial_dir
+        else:
+            start_dir = self._initial_dir(self.copy_mount)
+        selected = filedialog.askdirectory(
+            title="Vel kopimappe",
+            initialdir=start_dir,
+        )
+        if selected:
+            self.copy_destination.set(selected)
+            self.log_message(f"Valde kopimappe: {selected}")
+
     def create_and_select_new_folder(self) -> None:
         parent_dir = filedialog.askdirectory(
             title="Vel foreldremappe der ny mappe skal opprettast",
@@ -307,6 +361,7 @@ class NoteMakerApp:
     def start_processing(self) -> None:
         file_path = self.file_path.get()
         output_dir = self.output_dir.get()
+        model_name = self.model_name.get()
 
         if not file_path:
             messagebox.showwarning("Manglar fil", "Vel ei presentasjonsfil før du held fram.")
@@ -314,19 +369,26 @@ class NoteMakerApp:
         if not Path(file_path).exists():
             messagebox.showerror("Fil finst ikkje", "Den valde fila vart ikkje funnen.")
             return
+        if model_name not in AVAILABLE_MODELS:
+            messagebox.showerror("Ugyldig modell", "Vel ei gyldig OpenAI-modell frå lista.")
+            return
         copy_dir = None
-        if self.copy_source.get():
-            copy_dir = self._copy_directory_for_session(output_dir)
+        copy_requested = self.copy_source.get()
+        if copy_requested:
+            preferred_dir = self.copy_destination.get().strip()
+            copy_dir = self._copy_directory_for_session(
+                output_dir, preferred_dir if preferred_dir else None
+            )
 
         if not output_dir:
             messagebox.showwarning("Manglar mappe", "Vel lagringsmappe før du held fram.")
             return
 
         self.set_processing_state(True)
-        self.log_message("Startar generering av notat ...")
+        self.log_message(f"Startar generering av notat med modell {model_name} ...")
         thread = threading.Thread(
             target=self._process_workflow,
-            args=(file_path, output_dir, copy_dir, self.copy_source.get()),
+            args=(file_path, output_dir, copy_dir, copy_requested, model_name),
             daemon=True,
         )
         thread.start()
@@ -335,14 +397,26 @@ class NoteMakerApp:
         new_state = "disabled" if is_processing else "normal"
         self.process_button.config(state=new_state)
 
+    def _update_copy_controls_state(self) -> None:
+        enabled = self.copy_source.get()
+        entry_state = "readonly" if enabled else "disabled"
+        button_state = "normal" if enabled else "disabled"
+        self.copy_destination_entry.config(state=entry_state)
+        self.copy_dir_button.config(state=button_state)
+
     def _process_workflow(
-        self, file_path: str, output_dir: str, copy_dir: Optional[str], copy_requested: bool
+        self,
+        file_path: str,
+        output_dir: str,
+        copy_dir: Optional[str],
+        copy_requested: bool,
+        model_name: str,
     ) -> None:
         try:
             self.log_message("Hentar tekst frå fila ...")
             extracted_text = extract_text(file_path)
             self.log_message("Tekst ekstrahert. Sender til språkmodellen ...")
-            note_text = generate_note_from_text(extracted_text)
+            note_text = generate_note_from_text(extracted_text, model_name)
             note_path = save_note_text(note_text, output_dir, file_path)
             self.log_message(f"Notat lagra som: {note_path}")
             copied_path = None
@@ -380,8 +454,16 @@ class NoteMakerApp:
             return str(mount_path)
         return os.getcwd()
 
-    def _copy_directory_for_session(self, output_dir: str) -> str:
+    def _default_copy_directory_string(self, current_output: Optional[str] = None) -> str:
         if self.copy_mount.exists():
+            return str(self.copy_mount)
+        base_dir = Path(current_output) if current_output else Path(self.output_dir.get() or Path.home())
+        return str(Path(base_dir) / "kopierte_presentasjonar")
+
+    def _copy_directory_for_session(self, output_dir: str, preferred_dir: Optional[str] = None) -> str:
+        if preferred_dir:
+            target = Path(preferred_dir)
+        elif self.copy_mount.exists():
             target = self.copy_mount
         else:
             target = Path(output_dir) / "kopierte_presentasjonar"
