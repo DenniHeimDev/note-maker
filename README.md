@@ -7,6 +7,7 @@ Note Maker is a local-first web app that turns PDF or PowerPoint presentations i
 - Ships with opinionated prompts for Nynorsk, Bokmål, and English plus a configurable model list (defaults to `gpt-5.1`).
 - Copies the original presentation into an archive folder when requested so you can keep source material next to each note.
 - Lets you browse mounted folders directly in the browser to pick source files or override the default output/copy directories—no more manual `.env` edits after setup.
+- Includes a built-in `.env` editor: if no configuration exists you’re prompted immediately in the browser, and you can revisit the modal any time via “Edit configuration”.
 - Runs as a browser-based UI powered by FastAPI + vanilla JavaScript—no Tkinter/X11 requirements anymore.
 
 ## Requirements
@@ -16,7 +17,7 @@ Note Maker is a local-first web app that turns PDF or PowerPoint presentations i
 
 ## Getting Started
 1. **Configure environment** – Choose `python setup.py` (GUI helper) or `python setup_cli.py` (CLI) and follow the prompts.  
-   Both helpers store your OpenAI key plus the host folders that should be mounted into `.env`.
+   Prefer to stay in the browser? Just start the app: if `.env` is missing you’ll be prompted to fill in the OpenAI key and default folders immediately.
 2. **Start the container** – Run `./run.sh`. The script loads `.env`, exports `OPENAI_API_KEY`, ensures your input/output/copy folders exist, and launches `docker compose up --build`.
 3. **Use the web UI** – Once Docker prints that the server is ready, open `http://localhost:8000` in your browser. Upload a PDF/PPTX *or* pick an existing file from the mounted input folder, tweak the output/copy directories if needed, choose a model/language, and click **Generate note**. The page shows live status plus download/copy buttons when GPT finishes.
 
@@ -40,6 +41,11 @@ If you prefer to manage configuration manually, mirror the same keys in your own
 - `python setup_cli.py` is the original terminal-based helper that asks the same questions if you prefer the keyboard-only flow.
 
 Both helpers write identical `.env` files, so you can switch between them at any time.
+
+## In-Browser Configuration
+- Click **Edit configuration** (or wait for the automatic prompt on first launch) to manage `.env` directly from the UI.
+- The modal stores your OpenAI API key plus the host folders that `run.sh` mounts into Docker. Leaving the API key blank keeps the existing one, but when no `.env` exists you must supply a key before using the app.
+- Configuration changes take effect immediately for the running server and are written back to `.env` for future sessions.
 
 ## Running Without Docker
 You can run the FastAPI server directly if you have Python and the dependencies installed locally:

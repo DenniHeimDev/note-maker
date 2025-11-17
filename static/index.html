@@ -9,8 +9,13 @@
   <body>
     <header>
       <div class="container">
-        <h1>Note Maker</h1>
-        <p>Turn PDF/PPTX decks into structured notes using GPT directly in your browser.</p>
+        <div class="header-row">
+          <div>
+            <h1>Note Maker</h1>
+            <p>Turn PDF/PPTX decks into structured notes using GPT directly in your browser.</p>
+          </div>
+          <button id="config-btn" class="btn secondary" type="button">Edit configuration</button>
+        </div>
       </div>
     </header>
     <main class="container">
@@ -129,6 +134,36 @@
         <div class="modal-actions">
           <button type="button" id="browser-select" class="btn secondary">Select this folder</button>
         </div>
+      </div>
+    </div>
+    <div id="config-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Environment configuration</h3>
+          <button type="button" id="config-close" class="btn tertiary">Close</button>
+        </div>
+        <form id="config-form">
+          <p class="hint" id="config-message"></p>
+          <div class="form-row">
+            <label for="config-api-key">OpenAI API key</label>
+            <input id="config-api-key" type="password" autocomplete="off" placeholder="sk-..." />
+          </div>
+          <div class="form-row">
+            <label for="config-input-path">Host input folder</label>
+            <input id="config-input-path" type="text" autocomplete="off" />
+          </div>
+          <div class="form-row">
+            <label for="config-output-path">Host output folder</label>
+            <input id="config-output-path" type="text" autocomplete="off" />
+          </div>
+          <div class="form-row">
+            <label for="config-copy-path">Host copy folder</label>
+            <input id="config-copy-path" type="text" autocomplete="off" />
+          </div>
+          <div class="modal-actions">
+            <button type="submit" class="btn secondary">Save configuration</button>
+          </div>
+        </form>
       </div>
     </div>
     <script type="module" src="/static/app.js"></script>

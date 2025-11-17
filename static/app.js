@@ -29,8 +29,17 @@ const browserEntries = document.querySelector("#browser-entries");
 const browserSelectBtn = document.querySelector("#browser-select");
 const browserCloseBtn = document.querySelector("#browser-close");
 const browserUpBtn = document.querySelector("#browser-up");
+const configBtn = document.querySelector("#config-btn");
+const configModal = document.querySelector("#config-modal");
+const configCloseBtn = document.querySelector("#config-close");
+const configForm = document.querySelector("#config-form");
+const configMessage = document.querySelector("#config-message");
+const configApiKeyInput = document.querySelector("#config-api-key");
+const configInputPathInput = document.querySelector("#config-input-path");
+const configOutputPathInput = document.querySelector("#config-output-path");
+const configCopyPathInput = document.querySelector("#config-copy-path");
 
-const optionsState = { paths: {} };
+const optionsState = { paths: {}, config: null };
 const browserState = {
   root: null,
   selectType: "dir",
@@ -38,35 +47,61 @@ const browserState = {
   parentPath: "",
   targetInput: null,
 };
+let isLoading = false;
+let configModalForced = false;
+
+loadOptions();
 
 async function loadOptions() {
   try {
     const res = await fetch("/api/options");
     if (!res.ok) throw new Error("Failed to load options");
     const data = await res.json();
-    optionsState.paths = data.paths;
-    modelSelect.innerHTML = "";
-    data.models.forEach((model) => {
-      const option = document.createElement("option");
-      option.value = model;
-      option.textContent = model;
-      if (model === data.defaultModel) option.selected = true;
-      modelSelect.appendChild(option);
-    });
-    languageSelect.innerHTML = "";
-    data.languages.forEach((lang) => {
-      const option = document.createElement("option");
-      option.value = lang.key;
-      option.textContent = lang.label;
-      if (lang.key === data.defaultLanguage) option.selected = true;
-      languageSelect.appendChild(option);
-    });
+    optionsState.paths = data.paths || {};
+    optionsState.config = data.config || null;
+    populateModelOptions(data);
     updateHints();
-    statusText.textContent = `Output folder: ${data.paths.outputRoot}`;
+    handleConfigState();
   } catch (error) {
     console.error(error);
     statusText.textContent = "Kunne ikkje laste alternativ. Prøv å laste sida på nytt.";
   }
+}
+
+function populateModelOptions(data) {
+  modelSelect.innerHTML = "";
+  data.models.forEach((model) => {
+    const option = document.createElement("option");
+    option.value = model;
+    option.textContent = model;
+    if (model === data.defaultModel) option.selected = true;
+    modelSelect.appendChild(option);
+  });
+  languageSelect.innerHTML = "";
+  data.languages.forEach((lang) => {
+    const option = document.createElement("option");
+    option.value = lang.key;
+    option.textContent = lang.label;
+    if (lang.key === data.defaultLanguage) option.selected = true;
+    languageSelect.appendChild(option);
+  });
+}
+
+function handleConfigState() {
+  const needsSetup = optionsState.config?.needsSetup;
+  if (needsSetup) {
+    statusText.textContent = "Fullfør konfigureringa før du genererer notat.";
+    if (!configModalForced) {
+      openConfigModal(true);
+    }
+  } else {
+    statusText.textContent = `Output folder: ${optionsState.paths.outputRoot || "ukjent"}`;
+    if (!configModalForced) {
+      closeConfigModal();
+    }
+  }
+  updateHints();
+  updateSubmitState();
 }
 
 function updateHints() {
@@ -79,7 +114,13 @@ function updateHints() {
   hints.copy.textContent = optionsState.paths.copyRoot ? `Copy root: ${optionsState.paths.copyRoot}` : "";
 }
 
-loadOptions();
+function updateSubmitState() {
+  const needsSetup = optionsState.config?.needsSetup;
+  if (form) {
+    form.classList.toggle("blocked", !!needsSetup);
+  }
+  submitBtn.disabled = isLoading || !!needsSetup;
+}
 
 sourceRadios.forEach((radio) => {
   radio.addEventListener("change", () => {
@@ -200,6 +241,10 @@ function renderEntries(entries) {
 
 form?.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (optionsState.config?.needsSetup) {
+    statusText.textContent = "Fullfør konfigureringa før du genererer notat.";
+    return;
+  }
   const formData = new FormData(form);
   const selectedMode = document.querySelector('input[name="source_mode"]:checked')?.value || "upload";
   if (selectedMode === "upload") {
@@ -265,7 +310,85 @@ form?.addEventListener("submit", async (event) => {
   }
 });
 
-function toggleLoading(isLoading) {
-  submitBtn.disabled = isLoading;
-  submitBtn.textContent = isLoading ? "Working..." : "Generate note";
+function toggleLoading(state) {
+  isLoading = state;
+  submitBtn.textContent = state ? "Working..." : "Generate note";
+  updateSubmitState();
+}
+
+configBtn?.addEventListener("click", () => openConfigModal(false));
+configCloseBtn?.addEventListener("click", () => closeConfigModal());
+configForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  configMessage.textContent = "Lagrer konfigurasjon …";
+  const payload = {
+    apiKey: configApiKeyInput.value.trim() || null,
+    inputPath: configInputPathInput.value.trim(),
+    outputPath: configOutputPathInput.value.trim(),
+    copyPath: configCopyPathInput.value.trim(),
+  };
+  try {
+    const res = await fetch("/api/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.detail || "Feil ved lagring.");
+    }
+    configMessage.textContent = "Konfig lagra.";
+    configModalForced = false;
+    configCloseBtn.hidden = false;
+    await loadOptions();
+    setTimeout(() => {
+      closeConfigModal();
+    }, 600);
+  } catch (error) {
+    console.error(error);
+    configMessage.textContent = error.message;
+  }
+});
+
+async function openConfigModal(force = false) {
+  configModalForced = force;
+  configCloseBtn.hidden = !!force;
+  configModal.classList.remove("hidden");
+  configModal.setAttribute("aria-hidden", "false");
+  configMessage.textContent = force
+    ? "Ingen .env funnen. Fyll ut felta for å starte."
+    : "Oppdater konfigurasjonen og lagre.";
+  fillConfigForm(optionsState.config);
+  try {
+    const res = await fetch("/api/config");
+    if (!res.ok) throw new Error("Klarte ikkje å laste konfigurasjon.");
+    const data = await res.json();
+    optionsState.config = data;
+    fillConfigForm(data);
+  } catch (error) {
+    console.error(error);
+    configMessage.textContent = error.message;
+  }
+}
+
+function fillConfigForm(configData) {
+  if (!configData) {
+    configApiKeyInput.placeholder = "OpenAI API key";
+    return;
+  }
+  const values = configData.values || {};
+  configApiKeyInput.value = "";
+  configApiKeyInput.placeholder = configData.keyPreview
+    ? `Stored key: ${configData.keyPreview}`
+    : "OpenAI API key";
+  configInputPathInput.value = values.inputPath || "";
+  configOutputPathInput.value = values.outputPath || "";
+  configCopyPathInput.value = values.copyPath || "";
+}
+
+function closeConfigModal() {
+  if (configModalForced) return;
+  configModal.classList.add("hidden");
+  configModal.setAttribute("aria-hidden", "true");
+  configMessage.textContent = "";
 }

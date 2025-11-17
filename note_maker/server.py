@@ -7,9 +7,22 @@ from pathlib import Path
 
 from typing import Literal, Optional
 
+from config_helpers import (
+    COPY_FALLBACK,
+    ENV_PATH,
+    INPUT_FALLBACK,
+    OUTPUT_FALLBACK,
+    collect_preserved_lines,
+    ensure_directory,
+    normalize_path,
+    parse_env_file,
+    preview_key,
+    write_env_file,
+)
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from note_maker.core import (
     AVAILABLE_MODELS,
@@ -19,6 +32,41 @@ from note_maker.core import (
     GenerationResult,
     generate_note_from_file,
 )
+
+_ENV_CACHE: dict[str, str] = {}
+_CONFIG_REQUIRED = True
+
+
+def _reload_env_cache() -> None:
+    global _ENV_CACHE, _CONFIG_REQUIRED
+    _ENV_CACHE = parse_env_file(ENV_PATH)
+    required_keys = ("OPENAI_API_KEY", "HOST_INPUT_PATH", "HOST_OUTPUT_PATH", "HOST_COPY_PATH")
+    _CONFIG_REQUIRED = not _ENV_CACHE or any(not _ENV_CACHE.get(key) for key in required_keys)
+    api_key = _ENV_CACHE.get("OPENAI_API_KEY")
+    if api_key:
+        os.environ["OPENAI_API_KEY"] = api_key
+
+
+def _config_values() -> dict:
+    return {
+        "inputPath": _ENV_CACHE.get("HOST_INPUT_PATH", INPUT_FALLBACK),
+        "outputPath": _ENV_CACHE.get("HOST_OUTPUT_PATH", OUTPUT_FALLBACK),
+        "copyPath": _ENV_CACHE.get("HOST_COPY_PATH", COPY_FALLBACK),
+    }
+
+
+def _config_summary() -> dict:
+    values = _config_values()
+    key = _ENV_CACHE.get("OPENAI_API_KEY")
+    return {
+        "needsSetup": _CONFIG_REQUIRED,
+        "values": values,
+        "hasKey": bool(key),
+        "keyPreview": preview_key(key) if key else "",
+    }
+
+
+_reload_env_cache()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
@@ -63,6 +111,7 @@ def healthcheck() -> JSONResponse:
 
 @app.get("/api/options")
 def api_options() -> dict:
+    config_info = _config_summary()
     return {
         "models": AVAILABLE_MODELS,
         "defaultModel": DEFAULT_MODEL,
@@ -75,6 +124,7 @@ def api_options() -> dict:
             "outputRoot": str(HOST_OUTPUT_DIR),
             "copyRoot": str(HOST_COPY_DIR),
         },
+        "config": config_info,
     }
 
 
@@ -143,6 +193,8 @@ async def api_generate(
     output_dir: str = Form("", description="Relative path under HOST_OUTPUT_DIR"),
     copy_dir: str = Form("", description="Relative path under HOST_COPY_DIR"),
 ) -> dict:
+    if _CONFIG_REQUIRED:
+        raise HTTPException(status_code=428, detail="Konfigurer .env før du genererer notat.")
     source_path: Optional[Path] = None
     original_filename: Optional[str] = None
     temp_path: Optional[Path] = None
@@ -215,3 +267,54 @@ def download_note(note_name: str) -> FileResponse:
     if not note_path.exists():
         raise HTTPException(status_code=404, detail="Fann ikkje fila.")
     return FileResponse(note_path, filename=note_path.name, media_type="text/markdown")
+
+
+class ConfigPayload(BaseModel):
+    apiKey: Optional[str] = None
+    inputPath: str
+    outputPath: str
+    copyPath: str
+
+
+@app.get("/api/config")
+def api_get_config() -> dict:
+    return _config_summary()
+
+
+@app.post("/api/config")
+def api_save_config(payload: ConfigPayload) -> dict:
+    existing = _config_values()
+    try:
+        input_path = normalize_path(payload.inputPath.strip() or existing["inputPath"])
+        output_raw = payload.outputPath.strip()
+        output_path = normalize_path(output_raw or existing["outputPath"])
+        copy_input = payload.copyPath.strip()
+        if copy_input:
+            copy_path = normalize_path(copy_input)
+        elif output_raw:
+            copy_path = output_path
+        else:
+            copy_path = normalize_path(existing["copyPath"])
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Ugyldig sti: {exc}") from exc
+
+    api_key_candidate = (payload.apiKey or "").strip()
+    stored_key = _ENV_CACHE.get("OPENAI_API_KEY", "").strip()
+    api_key = api_key_candidate or stored_key
+    if not api_key:
+        raise HTTPException(status_code=400, detail="OpenAI API-nøkkel må fyllast ut.")
+
+    for folder in (input_path, output_path, copy_path):
+        ensure_directory(folder)
+
+    values = {
+        "OPENAI_API_KEY": api_key,
+        "HOST_INPUT_PATH": input_path,
+        "HOST_OUTPUT_PATH": output_path,
+        "HOST_COPY_PATH": copy_path,
+    }
+    preserved = collect_preserved_lines(ENV_PATH)
+    write_env_file(values, preserved, ENV_PATH)
+    os.environ["OPENAI_API_KEY"] = api_key
+    _reload_env_cache()
+    return {"status": "ok"}
