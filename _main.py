@@ -21,21 +21,67 @@ AVAILABLE_MODELS = [
     "gpt-5-mini",
 ]
 DEFAULT_MODEL = "gpt-5.1"
-SYSTEM_PROMPT = (
-    "Du er ein fagleg dyktig skribent som skriv klart og presist på nynorsk.\n"
-    "Du får tekst frå ei fagleg presentasjon (PowerPoint eller PDF) og skal lage\n"
-    "eit strukturert notat på nynorsk. Behald fagterminologi, ikkje oversett direkte til norsk vist det står på engelsk, bruk overskrifter\n"
-    "og underoverskrifter der det passar, og skriv i ein stil som eignar seg\n"
-    "som førebuing til undervisning eller eksamen."
-)
-USER_PROMPT_TEMPLATE = (
-    "Her er innhaldet frå presentasjonen. Lag eit strukturert notat på nynorsk\n"
-    "som oppsummerer og forklarer innhaldet.Du skal ikkje referere til \"slides\"\n"
-    "eller \"bilete\", berre skrive eit samanhengande notat i markdown format.\n\n"
-    "=== START AV INPUT ===\n"
-    "{tekst_her}\n"
-    "=== SLUTT AV INPUT ==="
-)
+
+LANGUAGE_OPTIONS = {
+    "nynorsk": {
+        "label": "Nynorsk",
+        "system_prompt": (
+            "Du er ein fagleg dyktig skribent som skriv klart og presist på nynorsk.\n"
+            "Du får tekst frå ei fagleg presentasjon (PowerPoint eller PDF) og skal lage\n"
+            "eit strukturert notat på nynorsk. Behald fagterminologi, ikkje oversett direkte til norsk vist det står på engelsk, bruk overskrifter\n"
+            "og underoverskrifter der det passar, og skriv i ein stil som eignar seg\n"
+            "som førebuing til undervisning eller eksamen."
+        ),
+        "user_template": (
+            "Her er innhaldet frå presentasjonen. Lag eit strukturert notat på nynorsk\n"
+            "som oppsummerer og forklarer innhaldet. Du skal ikkje referere til \"slides\"\n"
+            "eller \"bilete\", berre skrive eit samanhengande notat i markdown-format.\n\n"
+            "=== START AV INPUT ===\n"
+            "{tekst_her}\n"
+            "=== SLUTT AV INPUT ==="
+        ),
+        "note_suffix": "notat_nynorsk",
+    },
+    "bokmal": {
+        "label": "Bokmål",
+        "system_prompt": (
+            "Du er en faglig dyktig skribent som skriver klart og presist på bokmål.\n"
+            "Du får tekst fra en faglig presentasjon (PowerPoint eller PDF) og skal lage\n"
+            "et strukturert notat på bokmål. Behold fagterminologi, ikke oversett direkte fra engelsk\n"
+            "dersom det ikke gir mening, og bruk overskrifter og underoverskrifter der det passer."
+        ),
+        "user_template": (
+            "Her er innholdet fra presentasjonen. Lag et strukturert notat på bokmål\n"
+            "som oppsummerer og forklarer innholdet. Du skal ikke referere til \"slides\"\n"
+            "eller \"bilder\", men skrive et sammenhengende notat i markdown.\n\n"
+            "=== START AV INPUT ===\n"
+            "{tekst_her}\n"
+            "=== SLUTT AV INPUT ==="
+        ),
+        "note_suffix": "notat_bokmal",
+    },
+    "english": {
+        "label": "English",
+        "system_prompt": (
+            "You are an expert technical writer who produces clear, structured notes in English.\n"
+            "You receive text extracted from a presentation (PowerPoint or PDF) and must create\n"
+            "a study note. Keep domain terminology, avoid literal translations that harm meaning,\n"
+            "and use headings and subheadings where appropriate to prepare the reader for teaching or exams."
+        ),
+        "user_template": (
+            "Here is the content from the presentation. Produce a structured note in English\n"
+            "that summarizes and explains the material. Do not mention \"slides\" or \"images\";\n"
+            "write a continuous markdown document instead.\n\n"
+            "=== START OF INPUT ===\n"
+            "{tekst_her}\n"
+            "=== END OF INPUT ==="
+        ),
+        "note_suffix": "note_english",
+    },
+}
+DEFAULT_LANGUAGE = "nynorsk"
+LANGUAGE_LABEL_TO_KEY = {data["label"]: key for key, data in LANGUAGE_OPTIONS.items()}
+LANGUAGE_LABELS = [data["label"] for data in LANGUAGE_OPTIONS.values()]
 
 load_dotenv()
 
@@ -122,7 +168,14 @@ def extract_text(file_path: str) -> str:
     raise ValueError("Ukjend filtype. Vel ei .pptx- eller .pdf-fil.")
 
 
-def generate_note_from_text(text: str, model_name: str) -> str:
+def _language_settings(language_key: str) -> dict:
+    settings = LANGUAGE_OPTIONS.get(language_key)
+    if not settings:
+        raise ValueError(f"Ugyldig språkval: {language_key}.")
+    return settings
+
+
+def generate_note_from_text(text: str, model_name: str, language_key: str) -> str:
     if not OPENAI_API_KEY:
         raise RuntimeError("Miljøvariabelen OPENAI_API_KEY er ikkje sett.")
     if not text.strip():
@@ -131,11 +184,12 @@ def generate_note_from_text(text: str, model_name: str) -> str:
         raise RuntimeError("Fann ikkje klient for OpenAI. Kontroller API-nøkkelen.")
     if model_name not in AVAILABLE_MODELS:
         raise ValueError(f"Ugyldig modell: {model_name}.")
-    user_prompt = USER_PROMPT_TEMPLATE.format(tekst_her=text.strip())
+    settings = _language_settings(language_key)
+    user_prompt = settings["user_template"].format(tekst_her=text.strip())
     response = client.chat.completions.create(
         model=model_name,
         messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": settings["system_prompt"]},
             {"role": "user", "content": user_prompt},
         ],
     )
@@ -145,11 +199,11 @@ def generate_note_from_text(text: str, model_name: str) -> str:
     return note.strip()
 
 
-def save_note_text(note_text: str, output_dir: str, source_file: str) -> Path:
+def save_note_text(note_text: str, output_dir: str, source_file: str, note_suffix: str) -> Path:
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     file_stem = Path(source_file).stem
-    note_file = output_path / f"{file_stem}_notat_nynorsk.md"
+    note_file = output_path / f"{file_stem}_{note_suffix}.md"
     with note_file.open("w", encoding="utf-8") as handle:
         handle.write(note_text)
     return note_file
@@ -192,6 +246,10 @@ class NoteMakerApp:
         self.copy_destination = tk.StringVar(value=default_copy_dir)
         default_model = DEFAULT_MODEL if DEFAULT_MODEL in AVAILABLE_MODELS else AVAILABLE_MODELS[0]
         self.model_name = tk.StringVar(value=default_model)
+        default_language_label = LANGUAGE_OPTIONS.get(
+            DEFAULT_LANGUAGE, next(iter(LANGUAGE_OPTIONS.values()))
+        )["label"]
+        self.language_choice = tk.StringVar(value=default_language_label)
         self.copy_source.trace_add("write", lambda *_: self._update_copy_controls_state())
 
         self._build_layout()
@@ -217,6 +275,14 @@ class NoteMakerApp:
             state="readonly",
         )
         self.model_selector.grid(row=1, column=1, padx=6, pady=6, sticky="ew")
+        ttk.Label(status_frame, text="Språk:").grid(row=2, column=0, padx=6, pady=6, sticky="w")
+        self.language_selector = ttk.Combobox(
+            status_frame,
+            textvariable=self.language_choice,
+            values=LANGUAGE_LABELS,
+            state="readonly",
+        )
+        self.language_selector.grid(row=2, column=1, padx=6, pady=6, sticky="ew")
 
         file_frame = ttk.LabelFrame(self.root, text="1. Vel presentasjonsfil")
         file_frame.grid(row=1, column=0, padx=12, pady=6, sticky="ew")
@@ -362,6 +428,8 @@ class NoteMakerApp:
         file_path = self.file_path.get()
         output_dir = self.output_dir.get()
         model_name = self.model_name.get()
+        language_label = self.language_choice.get()
+        language_key = LANGUAGE_LABEL_TO_KEY.get(language_label)
 
         if not file_path:
             messagebox.showwarning("Manglar fil", "Vel ei presentasjonsfil før du held fram.")
@@ -371,6 +439,9 @@ class NoteMakerApp:
             return
         if model_name not in AVAILABLE_MODELS:
             messagebox.showerror("Ugyldig modell", "Vel ei gyldig OpenAI-modell frå lista.")
+            return
+        if not language_key:
+            messagebox.showerror("Ugyldig språk", "Vel eit gyldig språk frå lista.")
             return
         copy_dir = None
         copy_requested = self.copy_source.get()
@@ -385,10 +456,19 @@ class NoteMakerApp:
             return
 
         self.set_processing_state(True)
-        self.log_message(f"Startar generering av notat med modell {model_name} ...")
+        self.log_message(
+            f"Startar generering av notat med modell {model_name} på språk {language_label} ..."
+        )
         thread = threading.Thread(
             target=self._process_workflow,
-            args=(file_path, output_dir, copy_dir, copy_requested, model_name),
+            args=(
+                file_path,
+                output_dir,
+                copy_dir,
+                copy_requested,
+                model_name,
+                language_key,
+            ),
             daemon=True,
         )
         thread.start()
@@ -411,13 +491,17 @@ class NoteMakerApp:
         copy_dir: Optional[str],
         copy_requested: bool,
         model_name: str,
+        language_key: str,
     ) -> None:
         try:
             self.log_message("Hentar tekst frå fila ...")
             extracted_text = extract_text(file_path)
             self.log_message("Tekst ekstrahert. Sender til språkmodellen ...")
-            note_text = generate_note_from_text(extracted_text, model_name)
-            note_path = save_note_text(note_text, output_dir, file_path)
+            language_settings = _language_settings(language_key)
+            note_text = generate_note_from_text(extracted_text, model_name, language_key)
+            note_path = save_note_text(
+                note_text, output_dir, file_path, language_settings["note_suffix"]
+            )
             self.log_message(f"Notat lagra som: {note_path}")
             copied_path = None
             if copy_requested:
