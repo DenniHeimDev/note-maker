@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ ! -f ".env" ]]; then
-  echo "Tips: Køyr python setup.py for å konfigurere lokale mapper og API-nøkkel."
+  echo "Tips: Køyr python setup.py (GUI) eller python setup_cli.py (CLI) for å konfigurere mapper og API-nøkkel."
 fi
 
 read_env_value() {

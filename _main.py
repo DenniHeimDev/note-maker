@@ -230,7 +230,7 @@ def copy_source_file(source_file: str, output_dir: str) -> Path:
 class NoteMakerApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
-        self.root.title("Nynorsk notatgenerator for presentasjonar")
+        self.root.title("Notatgenerator for forelesninger")
         self.root.geometry("900x650")
 
         self.input_mount = Path(os.environ.get("HOST_INPUT_DIR", "/host/input"))
@@ -343,7 +343,7 @@ class NoteMakerApp:
         self.log_widget.grid(row=0, column=0, sticky="nsew", padx=6, pady=6)
 
         self.process_button = ttk.Button(
-            self.root, text="3. Generer nynorsk notat", command=self.start_processing
+            self.root, text="3. Generer notat", command=self.start_processing
         )
         self.process_button.grid(row=4, column=0, padx=12, pady=(0, 6), sticky="ew")
 

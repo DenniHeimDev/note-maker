@@ -1,7 +1,7 @@
 # Note Maker
 
 Note Maker is a small desktop utility that turns PDF or PowerPoint presentations into structured study notes with the help of OpenAI's GPT models.  
-The interface is written in Tkinter, packaged in Docker, and—per the creator's request—this app (and its documentation) was made using ChatGPT.
+The interface is written in Tkinter, packaged in Docker, was made using ChatGPT.
 
 ## Features
 - Extracts raw text from `.pptx` and `.pdf` presentations and keeps simple table formatting.
@@ -11,14 +11,14 @@ The interface is written in Tkinter, packaged in Docker, and—per the creator's
 - Simple GUI that runs locally but mounts folders from the host OS, so nothing ever leaves your machine except the API call to OpenAI.
 
 ## Requirements
-- Python 3.10+ (only needed for the `setup.py` helper or for running the app without Docker).
+- Python 3.10+ (only needed for the setup helpers—`python setup.py` or `python setup_cli.py`—or for running the app without Docker).
 - Docker and Docker Compose (used by `run.sh` to build and run the GUI container).
 - An OpenAI API key with access to the GPT models you want to target.
 - X server access if you start the GUI from WSL or a headless/Linux environment (`DISPLAY` is set to `:0` by `run.sh` when missing).
 
 ## Getting Started
-1. **Configure environment** – Run `python setup.py` and follow the prompts.  
-   The helper stores your OpenAI key plus the host folders that should be mounted into `.env` (existing content is preserved).
+1. **Configure environment** – Choose either `python setup.py` (Tkinter helper) or `python setup_cli.py` (CLI) and follow the prompts.  
+   Both helpers store your OpenAI key plus the host folders that should be mounted into `.env` (existing content is preserved).
 2. **Start the container** – Execute `./run.sh`. The script:
    - Pulls in configuration from `.env` (or `.env`-like files) and exports `OPENAI_API_KEY`, `HOST_INPUT_PATH`, `HOST_OUTPUT_PATH`, and `HOST_COPY_PATH`.
    - Creates the host folders if they do not exist yet.
@@ -32,7 +32,7 @@ The interface is written in Tkinter, packaged in Docker, and—per the creator's
 The generated notes will be saved as `<original_file>_<language_suffix>.md` in your chosen output directory.
 
 ## Configuration Reference
-The application reads configuration exclusively from environment variables (which `setup.py` writes into `.env`):
+The application reads configuration exclusively from environment variables (which the setup helpers write into `.env`):
 
 ```dotenv
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
@@ -46,6 +46,12 @@ HOST_COPY_PATH=/path/on/host/for/presentation-backups
 - `HOST_COPY_PATH` is used when the “Kopier presentasjonen” checkbox is enabled; the app keeps incrementing filenames to avoid overwriting.
 
 If you prefer to manage the file manually, mirror the same keys in your own `.env` or exported shell variables before running `./run.sh`.
+
+## GUI Setup Helper
+- Launch with `python setup.py`.
+- Includes masked API key entry, directory pickers with browse buttons, and inline validation so you know when everything is ready.
+- “Test mapper” attempts to create any missing folders before saving; “Lagre konfigurasjon” writes the `.env` file and reports the summary.
+- The GUI shares all logic with the CLI helper (`python setup_cli.py`), so you can switch between them without risking conflicting formats.
 
 ## Running Without Docker
 The GUI code lives in `_main.py`. If you would rather run it directly:

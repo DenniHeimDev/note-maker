@@ -1,187 +1,189 @@
 #!/usr/bin/env python3
-"""Interactive setup utility for note-maker.
-
-The script collects the folders that should be mounted into the container and
-the OpenAI API key, then writes them to the local .env file. Any unrelated
-entries that already exist in .env are preserved at the bottom of the file.
-"""
+"""Graphical setup assistant for note-maker."""
 
 from __future__ import annotations
 
-import getpass
-import sys
-from datetime import datetime
+import tkinter as tk
 from pathlib import Path
-from typing import Dict, Iterable, List
+from tkinter import filedialog, messagebox, ttk
 
-
-ENV_PATH = Path(".env")
-MANAGED_KEYS = {
-    "OPENAI_API_KEY",
-    "HOST_INPUT_PATH",
-    "HOST_OUTPUT_PATH",
-    "HOST_COPY_PATH",
-}
-
-# Fallback paths mimic the previous hard coded defaults so existing workflows
-# continue to behave as expected if the user simply accepts every prompt.
-INPUT_FALLBACK = "/mnt/c/Users/denni/Downloads"
-OUTPUT_FALLBACK = (
-    "/mnt/c/Users/denni/Telia Sky/Obsidian/DenniHeim's Vault/1. Projects/FORKURS"
+from config_helpers import (
+    COPY_FALLBACK,
+    ENV_PATH,
+    INPUT_FALLBACK,
+    OUTPUT_FALLBACK,
+    collect_preserved_lines,
+    ensure_directory,
+    normalize_path,
+    parse_env_file,
+    preview_key,
+    write_env_file,
 )
-COPY_FALLBACK = OUTPUT_FALLBACK
 
 
-def _parse_env_file(path: Path) -> Dict[str, str]:
-    if not path.exists():
-        return {}
-    result: Dict[str, str] = {}
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
-        stripped = raw_line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        if "=" in stripped:
-            name, value = stripped.split("=", 1)
-            name = name.strip()
-            value = value.strip()
+class SetupApp:
+    def __init__(self, root: tk.Tk) -> None:
+        self.root = root
+        self.root.title("note-maker oppsett")
+        self.root.geometry("520x420")
+
+        existing = parse_env_file(ENV_PATH)
+
+        self.api_key = tk.StringVar(value=existing.get("OPENAI_API_KEY", ""))
+        self.input_dir = tk.StringVar(value=existing.get("HOST_INPUT_PATH", INPUT_FALLBACK))
+        self.output_dir = tk.StringVar(value=existing.get("HOST_OUTPUT_PATH", OUTPUT_FALLBACK))
+        copy_default = existing.get("HOST_COPY_PATH") or existing.get("HOST_OUTPUT_PATH") or COPY_FALLBACK
+        self.copy_dir = tk.StringVar(value=copy_default)
+        self.status_var = tk.StringVar()
+        self.message_var = tk.StringVar()
+
+        self._build_layout()
+        self._update_status(existing)
+        self._validate_form()
+
+    def _build_layout(self) -> None:
+        container = ttk.Frame(self.root, padding=16)
+        container.grid(row=0, column=0, sticky="nsew")
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
+
+        status_frame = ttk.LabelFrame(container, text="Gjeldande status")
+        status_frame.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 12))
+        status_frame.columnconfigure(0, weight=1)
+
+        ttk.Label(status_frame, textvariable=self.status_var, foreground="#0a7b34").grid(
+            row=0, column=0, sticky="w", padx=8, pady=8
+        )
+
+        form = ttk.Frame(container)
+        form.grid(row=1, column=0, columnspan=2, sticky="nsew")
+        for idx in range(3):
+            form.columnconfigure(idx, weight=1 if idx == 1 else 0)
+
+        ttk.Label(form, text="OpenAI API-nøkkel:").grid(row=0, column=0, sticky="w")
+        api_entry = ttk.Entry(form, textvariable=self.api_key, show="•")
+        api_entry.grid(row=0, column=1, sticky="ew", padx=(8, 8))
+        ttk.Button(form, text="Vis", command=lambda: self._toggle_secret(api_entry)).grid(row=0, column=2, padx=(0, 0))
+
+        self._add_path_field(form, "Inndata-mappe:", self.input_dir, 1)
+        self._add_path_field(form, "Notat-mappe:", self.output_dir, 2)
+        self._add_path_field(form, "Kopi-mappe:", self.copy_dir, 3)
+
+        self.message_label = ttk.Label(
+            container, textvariable=self.message_var, foreground="#b45309", wraplength=480
+        )
+        self.message_label.grid(row=2, column=0, columnspan=2, sticky="w", pady=(12, 0))
+
+        button_frame = ttk.Frame(container)
+        button_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(12, 0))
+        button_frame.columnconfigure(0, weight=1)
+        button_frame.columnconfigure(1, weight=1)
+
+        ttk.Button(button_frame, text="Test mapper", command=self._test_directories).grid(
+            row=0, column=0, sticky="ew", padx=(0, 6)
+        )
+        self.save_button = ttk.Button(button_frame, text="Lagre konfigurasjon", command=self._save_configuration)
+        self.save_button.grid(row=0, column=1, sticky="ew", padx=(6, 0))
+
+        for var in (self.api_key, self.input_dir, self.output_dir, self.copy_dir):
+            var.trace_add("write", lambda *_: self._validate_form())
+
+    def _add_path_field(self, parent: ttk.Frame, label: str, variable: tk.StringVar, row: int) -> None:
+        ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", pady=(12 if row == 1 else 8, 0))
+        entry = ttk.Entry(parent, textvariable=variable)
+        entry.grid(row=row, column=1, sticky="ew", padx=(8, 8), pady=(12 if row == 1 else 8, 0))
+        ttk.Button(parent, text="Bla gjennom", command=lambda: self._choose_folder(variable)).grid(
+            row=row, column=2, pady=(12 if row == 1 else 8, 0)
+        )
+
+    def _toggle_secret(self, entry: ttk.Entry) -> None:
+        new_show = "" if entry.cget("show") else "•"
+        entry.config(show=new_show)
+
+    def _choose_folder(self, target_var: tk.StringVar) -> None:
+        initial = target_var.get().strip() or str(Path.home())
+        selected = filedialog.askdirectory(title="Vel mappe", initialdir=initial)
+        if selected:
+            try:
+                target_var.set(normalize_path(selected))
+            except Exception as exc:
+                messagebox.showerror("Ugyldig sti", f"Kunne ikkje bruke stien:\n{exc}")
+
+    def _validate_form(self) -> None:
+        errors = []
+        if not self.api_key.get().strip():
+            errors.append("Lim inn OpenAI API-nøkkelen din.")
+        for label, var in (
+            ("inndata-mappe", self.input_dir),
+            ("notat-mappe", self.output_dir),
+            ("kopi-mappe", self.copy_dir),
+        ):
+            if not var.get().strip():
+                errors.append(f"Vel {label}.")
+        if errors:
+            self.message_var.set(" • ".join(errors))
+            self.save_button.config(state="disabled")
         else:
-            name = "OPENAI_API_KEY"
-            value = stripped
-        if not value:
-            continue
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-            value = value[1:-1]
-        result[name] = value
-    return result
+            self.message_var.set("Alt klart – trykk «Lagre konfigurasjon».")
+            self.save_button.config(state="normal")
 
-
-def _normalize_path(candidate: str) -> str:
-    expanded = Path(candidate).expanduser()
-    # resolve(strict=False) keeps whatever the user typed even if it does not yet
-    # exist, but still removes ".." and redundant separators.
-    resolved = expanded.resolve(strict=False)
-    return str(resolved)
-
-
-def _prompt_path(message: str, default_value: str) -> str:
-    while True:
-        prompt = f"{message} [{default_value}]: "
-        user_input = input(prompt).strip()
-        if not user_input:
-            user_input = default_value
+    def _test_directories(self) -> None:
+        paths = [self.input_dir.get().strip(), self.output_dir.get().strip(), self.copy_dir.get().strip()]
+        missing = [p for p in paths if not p]
+        if missing:
+            messagebox.showwarning("Manglar verdiar", "Fyll inn alle mapper før du testar.")
+            return
         try:
-            normalized = _normalize_path(user_input)
-        except Exception as exc:  # pragma: no cover - interactive helper
-            print(f"Kunne ikkje tolke stien ({exc}). Prøv igjen.")
-            continue
-        if normalized:
-            return normalized
-        print("Stien kan ikkje vere tom. Prøv igjen.")
+            for path in paths:
+                ensure_directory(path)
+            messagebox.showinfo("Suksess", "Mapper er tilgjengelege og klare.")
+        except Exception as exc:
+            messagebox.showerror("Feil ved testing", f"Kunne ikkje opprette/finne mapper:\n{exc}")
+
+    def _save_configuration(self) -> None:
+        self._validate_form()
+        if self.save_button.cget("state") == "disabled":
+            return
+        input_dir = normalize_path(self.input_dir.get().strip())
+        output_dir = normalize_path(self.output_dir.get().strip())
+        copy_dir = normalize_path(self.copy_dir.get().strip())
+        values = {
+            "OPENAI_API_KEY": self.api_key.get().strip(),
+            "HOST_INPUT_PATH": input_dir,
+            "HOST_OUTPUT_PATH": output_dir,
+            "HOST_COPY_PATH": copy_dir,
+        }
+        try:
+            for folder in (input_dir, output_dir, copy_dir):
+                ensure_directory(folder)
+            preserved = collect_preserved_lines(ENV_PATH)
+            write_env_file(values, preserved, ENV_PATH)
+        except Exception as exc:
+            messagebox.showerror("Feil ved lagring", f"Kunne ikkje lagre .env:\n{exc}")
+            return
+        self._update_status(values)
+        messagebox.showinfo(
+            "Konfig lagra",
+            (
+                "Innstillingane er lagra i .env.\n\n"
+                f"API: {preview_key(values['OPENAI_API_KEY'])}\n"
+                f"Inndata: {input_dir}\nNotat: {output_dir}\nKopi: {copy_dir}"
+            ),
+        )
+
+    def _update_status(self, values: dict) -> None:
+        if ENV_PATH.exists():
+            msg = f".env funnen – siste kjende API: {preview_key(values.get('OPENAI_API_KEY', 'ukjent'))}"
+        else:
+            msg = "Ingen .env funnen enno."
+        self.status_var.set(msg)
 
 
-def _prompt_api_key(existing: str | None) -> str:
-    if existing:
-        preview = f"{existing[:4]}...{existing[-4:]}" if len(existing) > 8 else existing
-        keep = input(
-            f"Det finst allereie ein API-nøkkel ({preview}). Vil du bruke denne? [Y/n]: "
-        ).strip().lower()
-        if keep in {"", "y", "yes"}:
-            return existing
-    while True:
-        key = getpass.getpass("Lim inn OpenAI API-nøkkelen din: ").strip()
-        if key:
-            return key
-        print("API-nøkkelen kan ikkje vere tom. Prøv igjen.")
-
-
-def _confirm(prompt: str) -> bool:
-    while True:
-        answer = input(f"{prompt} [Y/n]: ").strip().lower()
-        if answer in {"", "y", "yes"}:
-            return True
-        if answer in {"n", "no"}:
-            return False
-        print("Svar med y eller n.")
-
-
-def _collect_preserved_lines(path: Path) -> List[str]:
-    if not path.exists():
-        return []
-    preserved: List[str] = []
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
-        stripped = raw_line.strip()
-        if not stripped:
-            continue
-        if stripped.startswith("#"):
-            preserved.append(raw_line)
-            continue
-        if "=" not in stripped:
-            preserved.append(raw_line)
-            continue
-        name = stripped.split("=", 1)[0].strip()
-        if name in MANAGED_KEYS:
-            continue
-        preserved.append(raw_line)
-    return preserved
-
-
-def _write_env_file(values: Dict[str, str], preserved_lines: Iterable[str]) -> None:
-    lines = ["# note-maker configuration", f"# Sist oppdatert: {datetime.now():%Y-%m-%d %H:%M:%S}"]
-    for key in ("OPENAI_API_KEY", "HOST_INPUT_PATH", "HOST_OUTPUT_PATH", "HOST_COPY_PATH"):
-        lines.append(f"{key}={values[key]}")
-    preserved = list(preserved_lines)
-    if preserved:
-        lines.append("")
-        lines.append("# Andre verdiar bevart frå før")
-        lines.extend(preserved)
-    ENV_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
-
-
-def main() -> int:
-    print("Velkomen til oppsettsguiden for note-maker.\n")
-    existing = _parse_env_file(ENV_PATH)
-
-    api_key = _prompt_api_key(existing.get("OPENAI_API_KEY"))
-    input_dir = _prompt_path(
-        "Mapper med presentasjonane du vil lese frå", existing.get("HOST_INPUT_PATH", INPUT_FALLBACK)
-    )
-    output_dir = _prompt_path(
-        "Mapper der notata skal lagrast", existing.get("HOST_OUTPUT_PATH", OUTPUT_FALLBACK)
-    )
-    copy_dir_default = existing.get("HOST_COPY_PATH") or existing.get("HOST_OUTPUT_PATH") or COPY_FALLBACK
-    copy_dir = _prompt_path(
-        "Mapper der presentasjonane skal kopierast", copy_dir_default
-    )
-
-    print("\nSamandrag:")
-    print(f"  OpenAI-API: {api_key[:4]}...{api_key[-4:]}" if len(api_key) > 8 else f"  OpenAI-API: {api_key}")
-    print(f"  Inndata:     {input_dir}")
-    print(f"  Notatmappe:  {output_dir}")
-    print(f"  Kopimappe:   {copy_dir}")
-
-    if not _confirm("Lagre og opprette eventuelle manglande mapper?"):
-        print("Avbryt. Ingen endringar vart lagra.")
-        return 0
-
-    for folder in (input_dir, output_dir, copy_dir):
-        path = Path(folder)
-        if not path.exists():
-            path.mkdir(parents=True, exist_ok=True)
-            print(f"Oppretta mappe: {folder}")
-
-    values = {
-        "OPENAI_API_KEY": api_key,
-        "HOST_INPUT_PATH": input_dir,
-        "HOST_OUTPUT_PATH": output_dir,
-        "HOST_COPY_PATH": copy_dir,
-    }
-    preserved_lines = _collect_preserved_lines(ENV_PATH)
-    _write_env_file(values, preserved_lines)
-
-    print("\nFerdig! Konfigurasjonen er lagra i .env.")
-    print("Køyr ./run.sh for å byggje og starte appen med desse innstillingane.")
-    return 0
+def main() -> None:
+    root = tk.Tk()
+    SetupApp(root)
+    root.mainloop()
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
