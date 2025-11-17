@@ -6,6 +6,7 @@ Note Maker is a local-first web app that turns PDF or PowerPoint presentations i
 - Extracts raw text from `.pptx` and `.pdf` decks (tables included) before handing it to GPT.
 - Ships with opinionated prompts for Nynorsk, Bokmål, and English plus a configurable model list (defaults to `gpt-5.1`).
 - Copies the original presentation into an archive folder when requested so you can keep source material next to each note.
+- Lets you browse mounted folders directly in the browser to pick source files or override the default output/copy directories—no more manual `.env` edits after setup.
 - Runs as a browser-based UI powered by FastAPI + vanilla JavaScript—no Tkinter/X11 requirements anymore.
 
 ## Requirements
@@ -17,7 +18,7 @@ Note Maker is a local-first web app that turns PDF or PowerPoint presentations i
 1. **Configure environment** – Choose `python setup.py` (GUI helper) or `python setup_cli.py` (CLI) and follow the prompts.  
    Both helpers store your OpenAI key plus the host folders that should be mounted into `.env`.
 2. **Start the container** – Run `./run.sh`. The script loads `.env`, exports `OPENAI_API_KEY`, ensures your input/output/copy folders exist, and launches `docker compose up --build`.
-3. **Use the web UI** – Once Docker prints that the server is ready, open `http://localhost:8000` in your browser. Upload a PDF/PPTX, pick a model/language, decide whether to copy the original file, and click **Generate note**. The page shows live status plus download/copy buttons when GPT finishes.
+3. **Use the web UI** – Once Docker prints that the server is ready, open `http://localhost:8000` in your browser. Upload a PDF/PPTX *or* pick an existing file from the mounted input folder, tweak the output/copy directories if needed, choose a model/language, and click **Generate note**. The page shows live status plus download/copy buttons when GPT finishes.
 
 ## Configuration Reference
 The application reads configuration exclusively from environment variables (which the setup helpers write into `.env`):
@@ -52,6 +53,10 @@ uvicorn note_maker.server:app --reload
 ```
 
 Then visit `http://localhost:8000` just like when using Docker. Optional environment variables (`HOST_OUTPUT_DIR`, `HOST_COPY_DIR`) still control where generated files are stored.
+
+## Mounted Folder Picker
+- The backend mounts three host folders (input/output/copy) as defined in `.env`. The browser UI exposes them through a safe picker so you can navigate subfolders, choose an existing deck, or redirect the exported Markdown/copied files to a different location without rerunning the setup helpers.
+- Paths are always constrained to the configured roots, so you can’t accidentally read or write outside the volumes shared with Docker.
 
 ## Notes on ChatGPT Usage
 - The list of models lives in `note_maker/core.py` (`AVAILABLE_MODELS`). Add or remove names there if OpenAI rolls out new versions.

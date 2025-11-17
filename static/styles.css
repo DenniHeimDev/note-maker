@@ -45,6 +45,12 @@ form {
   gap: 1.25rem;
 }
 
+.radio-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 .form-row {
   display: flex;
   flex-direction: column;
@@ -52,12 +58,32 @@ form {
 }
 
 .form-row input[type="file"],
-.form-row select {
+.form-row select,
+.form-row input[type="text"] {
   padding: 0.6rem 0.75rem;
   border-radius: 8px;
   border: 1px solid rgba(226, 232, 240, 0.3);
   background: rgba(15, 23, 42, 0.6);
   color: inherit;
+}
+
+.browse-field {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.browse-field input {
+  flex: 1;
+}
+
+.hint {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin: 0.2rem 0 0;
+}
+
+.source-mode.hidden {
+  display: none;
 }
 
 .form-checkbox {
@@ -129,8 +155,84 @@ button:disabled {
   color: #a1a1aa;
 }
 
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-content {
+  background: #0f172a;
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.15);
+  padding: 1rem;
+  width: min(640px, 90vw);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.browser-path {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.browser-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.browser-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.25rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.browser-list button {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  padding: 0.25rem 0;
+}
+
+.browser-list button:hover {
+  color: #38bdf8;
+}
+
+.modal-actions {
+  margin-top: 1rem;
+  text-align: right;
+}
+
 @media (max-width: 700px) {
   header {
     text-align: center;
+  }
+
+  .radio-row {
+    flex-direction: column;
   }
 }

@@ -5,7 +5,9 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from typing import Literal, Optional
+
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -21,11 +23,12 @@ from note_maker.core import (
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
 
+HOST_INPUT_DIR = Path(os.environ.get("HOST_INPUT_DIR", BASE_DIR / "input")).expanduser()
 HOST_OUTPUT_DIR = Path(os.environ.get("HOST_OUTPUT_DIR", BASE_DIR / "output")).expanduser()
 HOST_COPY_DIR = Path(os.environ.get("HOST_COPY_DIR", HOST_OUTPUT_DIR / "copies")).expanduser()
 
-HOST_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-HOST_COPY_DIR.mkdir(parents=True, exist_ok=True)
+for folder in (HOST_INPUT_DIR, HOST_OUTPUT_DIR, HOST_COPY_DIR):
+    folder.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="note-maker web")
 
@@ -68,47 +71,126 @@ def api_options() -> dict:
         ],
         "defaultLanguage": DEFAULT_LANGUAGE,
         "paths": {
-            "output": str(HOST_OUTPUT_DIR),
-            "copy": str(HOST_COPY_DIR),
+            "inputRoot": str(HOST_INPUT_DIR),
+            "outputRoot": str(HOST_OUTPUT_DIR),
+            "copyRoot": str(HOST_COPY_DIR),
         },
+    }
+
+
+def _resolve_inside(base: Path, relative_path: str) -> Path:
+    cleaned = Path(relative_path) if relative_path else Path(".")
+    candidate = (base / cleaned).resolve()
+    try:
+        candidate.relative_to(base.resolve())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Ugyldig sti.") from exc
+    return candidate
+
+
+def _list_directory(base: Path, relative: str, include_files: bool) -> dict:
+    directory = _resolve_inside(base, relative)
+    base_resolved = base.resolve()
+    entries = []
+    for child in sorted(directory.iterdir(), key=lambda p: (p.is_file(), p.name.lower())):
+        if child.name.startswith("."):
+            continue
+        relative_child = str(child.resolve().relative_to(base_resolved))
+        if child.is_dir():
+            entries.append({"name": child.name, "path": relative_child, "type": "dir"})
+        elif include_files:
+            entries.append({"name": child.name, "path": relative_child, "type": "file"})
+    current_rel = "" if directory.resolve() == base_resolved else str(directory.resolve().relative_to(base_resolved))
+    parent_rel = ""
+    if current_rel:
+        parent_rel = str(Path(current_rel).parent)
+        if parent_rel == ".":
+            parent_rel = ""
+    return {
+        "currentPath": current_rel,
+        "parentPath": parent_rel,
+        "entries": entries,
+    }
+
+
+@app.get("/api/browse")
+def api_browse(
+    root: Literal["input", "output", "copy"],
+    path: Optional[str] = Query(default="", description="Relative path inside the selected root"),
+) -> dict:
+    base = {
+        "input": HOST_INPUT_DIR,
+        "output": HOST_OUTPUT_DIR,
+        "copy": HOST_COPY_DIR,
+    }[root]
+    include_files = root == "input"
+    listing = _list_directory(base, path or "", include_files=include_files)
+    return {
+        "root": root,
+        "base": str(base),
+        "canSelectFiles": include_files,
+        **listing,
     }
 
 
 @app.post("/api/generate")
 async def api_generate(
-    file: UploadFile = File(...),
+    file: UploadFile | None = File(default=None),
     model: str = Form(DEFAULT_MODEL),
     language: str = Form(DEFAULT_LANGUAGE),
     copy_source: str | bool | None = Form(False),
+    existing_path: str = Form("", description="Relative path to an existing file under HOST_INPUT_DIR"),
+    output_dir: str = Form("", description="Relative path under HOST_OUTPUT_DIR"),
+    copy_dir: str = Form("", description="Relative path under HOST_COPY_DIR"),
 ) -> dict:
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="Du må laste opp ei fil.")
-    file_suffix = Path(file.filename).suffix.lower()
-    if file_suffix not in {".pdf", ".pptx"}:
-        raise HTTPException(status_code=400, detail="Berre .pdf eller .pptx er støtta.")
+    source_path: Optional[Path] = None
+    original_filename: Optional[str] = None
+    temp_path: Optional[Path] = None
 
+    existing_path = existing_path.strip()
+    if existing_path:
+        candidate = _resolve_inside(HOST_INPUT_DIR, existing_path)
+        if not candidate.exists() or not candidate.is_file():
+            raise HTTPException(status_code=400, detail="Fila finst ikkje.")
+        if candidate.suffix.lower() not in {".pdf", ".pptx"}:
+            raise HTTPException(status_code=400, detail="Berre .pdf eller .pptx er støtta.")
+        source_path = candidate
+        original_filename = candidate.name
+    else:
+        if not file or not file.filename:
+            raise HTTPException(status_code=400, detail="Vel ei fil eller bruk eksisterande fil.")
+        file_suffix = Path(file.filename).suffix.lower()
+        if file_suffix not in {".pdf", ".pptx"}:
+            raise HTTPException(status_code=400, detail="Berre .pdf eller .pptx er støtta.")
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_suffix) as tmp:
+            shutil.copyfileobj(file.file, tmp)
+            temp_path = Path(tmp.name)
+        source_path = temp_path
+        original_filename = file.filename
+
+    output_target = _resolve_inside(HOST_OUTPUT_DIR, output_dir.strip()) if output_dir.strip() else HOST_OUTPUT_DIR
+    copy_target = _resolve_inside(HOST_COPY_DIR, copy_dir.strip()) if copy_dir.strip() else HOST_COPY_DIR
     copy_requested = _bool_from_form(copy_source)
-    with tempfile.NamedTemporaryFile(delete=False, suffix=file_suffix) as tmp:
-        shutil.copyfileobj(file.file, tmp)
-        temp_path = Path(tmp.name)
     try:
         result: GenerationResult = generate_note_from_file(
-            temp_path,
-            original_filename=file.filename,
-            output_dir=HOST_OUTPUT_DIR,
+            source_path,
+            original_filename=original_filename,
+            output_dir=output_target,
             model_name=model,
             language_key=language,
             copy_requested=copy_requested,
-            copy_dir=HOST_COPY_DIR if copy_requested else None,
+            copy_dir=copy_target if copy_requested else None,
         )
     except Exception as exc:  # broad: we want to surface user friendly errors
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     finally:
-        file.file.close()
-        try:
-            temp_path.unlink()
-        except FileNotFoundError:
-            pass
+        if file:
+            file.file.close()
+        if temp_path:
+            try:
+                temp_path.unlink()
+            except FileNotFoundError:
+                pass
 
     return {
         "noteName": result.note_path.name,
@@ -116,6 +198,8 @@ async def api_generate(
         "noteText": result.note_text,
         "copiedPath": str(result.copied_path) if result.copied_path else None,
         "downloadUrl": f"/api/notes/{result.note_path.name}",
+        "outputDir": str(output_target),
+        "copyDir": str(copy_target if copy_requested else ""),
     }
 
 
