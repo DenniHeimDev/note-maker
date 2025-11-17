@@ -1,35 +1,23 @@
 # Note Maker
 
-Note Maker is a small desktop utility that turns PDF or PowerPoint presentations into structured study notes with the help of OpenAI's GPT models.  
-The interface is written in Tkinter, packaged in Docker, was made using ChatGPT.
+Note Maker is a local-first web app that turns PDF or PowerPoint presentations into structured study notes with the help of OpenAI's GPT models. Everything runs on your machine: the FastAPI backend processes uploads, the browser UI drives the workflow, and the only external call goes to OpenAI.
 
 ## Features
-- Extracts raw text from `.pptx` and `.pdf` presentations and keeps simple table formatting.
-- Sends the extracted content to configurable OpenAI GPT models (defaults to `gpt-5.1`) to produce high quality notes.
-- Ships with writing templates for Nynorsk, Bokmål, and English so each language keeps tone and terminology.
-- Optional one-click copy of the source presentation into the export folder (handy for archiving).
-- Simple GUI that runs locally but mounts folders from the host OS, so nothing ever leaves your machine except the API call to OpenAI.
+- Extracts raw text from `.pptx` and `.pdf` decks (tables included) before handing it to GPT.
+- Ships with opinionated prompts for Nynorsk, Bokmål, and English plus a configurable model list (defaults to `gpt-5.1`).
+- Copies the original presentation into an archive folder when requested so you can keep source material next to each note.
+- Runs as a browser-based UI powered by FastAPI + vanilla JavaScript—no Tkinter/X11 requirements anymore.
 
 ## Requirements
-- Python 3.10+ (only needed for the setup helpers—`python setup.py` or `python setup_cli.py`—or for running the app without Docker).
-- Docker and Docker Compose (used by `run.sh` to build and run the GUI container).
+- Python 3.10+ (needed for the setup helpers or if you run the app without Docker).
+- Docker and Docker Compose (used by `run.sh` to build and run the FastAPI server).
 - An OpenAI API key with access to the GPT models you want to target.
-- X server access if you start the GUI from WSL or a headless/Linux environment (`DISPLAY` is set to `:0` by `run.sh` when missing).
 
 ## Getting Started
-1. **Configure environment** – Choose either `python setup.py` (Tkinter helper) or `python setup_cli.py` (CLI) and follow the prompts.  
-   Both helpers store your OpenAI key plus the host folders that should be mounted into `.env` (existing content is preserved).
-2. **Start the container** – Execute `./run.sh`. The script:
-   - Pulls in configuration from `.env` (or `.env`-like files) and exports `OPENAI_API_KEY`, `HOST_INPUT_PATH`, `HOST_OUTPUT_PATH`, and `HOST_COPY_PATH`.
-   - Creates the host folders if they do not exist yet.
-   - Launches `docker compose up --build` so the GUI runs inside the container.
-3. **Use the GUI** – Once the Tkinter window shows up:
-   - Pick a PowerPoint or PDF file.
-   - Choose the output folder (and optionally a folder that should receive a copy of the original file).
-   - Select one of the available GPT models or language presets.
-   - Click “Generer nynorsk notat” to kick off the threaded workflow that extracts text, calls the ChatGPT model, and writes the Markdown note.
-
-The generated notes will be saved as `<original_file>_<language_suffix>.md` in your chosen output directory.
+1. **Configure environment** – Choose `python setup.py` (GUI helper) or `python setup_cli.py` (CLI) and follow the prompts.  
+   Both helpers store your OpenAI key plus the host folders that should be mounted into `.env`.
+2. **Start the container** – Run `./run.sh`. The script loads `.env`, exports `OPENAI_API_KEY`, ensures your input/output/copy folders exist, and launches `docker compose up --build`.
+3. **Use the web UI** – Once Docker prints that the server is ready, open `http://localhost:8000` in your browser. Upload a PDF/PPTX, pick a model/language, decide whether to copy the original file, and click **Generate note**. The page shows live status plus download/copy buttons when GPT finishes.
 
 ## Configuration Reference
 The application reads configuration exclusively from environment variables (which the setup helpers write into `.env`):
@@ -41,39 +29,38 @@ HOST_OUTPUT_PATH=/path/on/host/for/notes
 HOST_COPY_PATH=/path/on/host/for/presentation-backups
 ```
 
-- `HOST_INPUT_PATH` is where the file picker starts when you click “Bla gjennom”.
-- `HOST_OUTPUT_PATH` becomes the initial save location for generated notes.
-- `HOST_COPY_PATH` is used when the “Kopier presentasjonen” checkbox is enabled; the app keeps incrementing filenames to avoid overwriting.
+- `HOST_OUTPUT_PATH` determines where generated Markdown notes land (and is where the UI fetches download links from).
+- `HOST_COPY_PATH` is used when the “copy presentation” checkbox is selected; files are deduplicated automatically.
 
-If you prefer to manage the file manually, mirror the same keys in your own `.env` or exported shell variables before running `./run.sh`.
+If you prefer to manage configuration manually, mirror the same keys in your own `.env` or exported shell variables before running `./run.sh`.
 
-## GUI Setup Helper
-- Launch with `python setup.py`.
-- Includes masked API key entry, directory pickers with browse buttons, and inline validation so you know when everything is ready.
-- “Test mapper” attempts to create any missing folders before saving; “Lagre konfigurasjon” writes the `.env` file and reports the summary.
-- The GUI shares all logic with the CLI helper (`python setup_cli.py`), so you can switch between them without risking conflicting formats.
+## Setup Helpers
+- `python setup.py` launches a Tkinter assistant with masked API key entry, directory pickers, inline validation, and a “Test mapper” button that creates missing folders before saving `.env`.
+- `python setup_cli.py` is the original terminal-based helper that asks the same questions if you prefer the keyboard-only flow.
+
+Both helpers write identical `.env` files, so you can switch between them at any time.
 
 ## Running Without Docker
-The GUI code lives in `_main.py`. If you would rather run it directly:
+You can run the FastAPI server directly if you have Python and the dependencies installed locally:
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 export OPENAI_API_KEY=...
-python _main.py
+uvicorn note_maker.server:app --reload
 ```
 
-Optional environment variables (`HOST_INPUT_DIR`, `HOST_OUTPUT_DIR`, `HOST_COPY_DIR`) can still be set to seed the default folders when the Tkinter dialog opens.
+Then visit `http://localhost:8000` just like when using Docker. Optional environment variables (`HOST_OUTPUT_DIR`, `HOST_COPY_DIR`) still control where generated files are stored.
 
 ## Notes on ChatGPT Usage
-- The available models live in `_main.py` in the `AVAILABLE_MODELS` list; add/remove names there if OpenAI updates offerings.
-- Each language option in `LANGUAGE_OPTIONS` defines both the system prompt and the user template, allowing you to fine-tune how ChatGPT crafts the final note.
-- Because the app relies on ChatGPT responses, make sure your API usage complies with your organization's privacy requirements.
+- The list of models lives in `note_maker/core.py` (`AVAILABLE_MODELS`). Add or remove names there if OpenAI rolls out new versions.
+- Prompts for each supported language are defined in `LANGUAGE_OPTIONS`. Adjust them to change tone, formatting rules, or add more languages.
+- The server never exposes your API key to the browser; only the backend calls OpenAI.
 
 ## Troubleshooting
-- **API errors** – Confirm `OPENAI_API_KEY` is exported inside the Docker container (the status label in the GUI shows a ✓/✗ indicator).  
-- **Missing fonts/UI issues** – Tkinter needs access to system fonts via the container. If the window fails to open on Linux/WSL, ensure `xhost +local:` (or similar) allows Docker to use your X server.
-- **Large PDFs** – PyMuPDF reads the entire document into memory. Extremely large decks may take a while; progress is logged in the “Status og logg” panel.
+- **“OPENAI_API_KEY is not set”** – Ensure `.env` exists or export the key in your shell before running `./run.sh`.
+- **Upload errors** – Only `.pdf` and `.pptx` files are accepted. If your deck is huge, be patient: extraction happens before the request reaches GPT.
+- **Permission errors / missing folders** – Double-check that the host paths in `.env` point to locations Docker Desktop/WSL can mount and that your user has read/write rights.
 
-Feel free to extend the prompts, add new languages, or integrate other GPT tools—the project was intentionally structured to make those tweaks straightforward.
+Feel free to extend the prompts, add languages, or build a richer frontend—everything is intentionally small so you can customize it quickly.

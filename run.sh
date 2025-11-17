@@ -81,10 +81,6 @@ echo "  Inndata:    $HOST_INPUT_PATH"
 echo "  Notat:      $HOST_OUTPUT_PATH"
 echo "  Kopi:       $HOST_COPY_PATH"
 
-if [[ "${DISPLAY:-}" == "" ]]; then
-  export DISPLAY=":0"
-  echo "DISPLAY var ikkje sett. Brukar standard :0."
-fi
-
 echo "Bygg og start konteinaren ..."
+echo "Opne http://localhost:8000 i nettlesaren din når konteinaren køyrer."
 docker compose up --build "$@"

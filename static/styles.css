@@ -1,0 +1,136 @@
+:root {
+  color-scheme: dark light;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at top, rgba(148, 187, 233, 0.12), transparent 60%),
+    #0f172a;
+  min-height: 100vh;
+}
+
+header {
+  padding: 2rem 0;
+}
+
+.container {
+  width: min(960px, calc(100% - 2rem));
+  margin: 0 auto;
+}
+
+h1 {
+  margin-bottom: 0.4rem;
+}
+
+main {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.card {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(226, 232, 240, 0.1);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-row input[type="file"],
+.form-row select {
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(226, 232, 240, 0.3);
+  background: rgba(15, 23, 42, 0.6);
+  color: inherit;
+}
+
+.form-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+button,
+.btn {
+  cursor: pointer;
+  padding: 0.75rem 1.25rem;
+  border-radius: 999px;
+  border: none;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+button#submit-btn {
+  background: linear-gradient(120deg, #14b8a6, #6366f1);
+  color: white;
+  border: none;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn.secondary {
+  text-decoration: none;
+  color: white;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+}
+
+.btn.tertiary {
+  background: transparent;
+  border: 1px solid rgba(226, 232, 240, 0.3);
+  color: inherit;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+#note-preview {
+  max-height: 320px;
+  overflow: auto;
+  background: rgba(15, 23, 42, 0.4);
+  border-radius: 12px;
+  padding: 1rem;
+  border: 1px solid rgba(226, 232, 240, 0.08);
+}
+
+.copy-path {
+  margin-top: 0.5rem;
+  font-size: 0.95rem;
+  color: #a1a1aa;
+}
+
+@media (max-width: 700px) {
+  header {
+    text-align: center;
+  }
+}
