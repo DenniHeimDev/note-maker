@@ -30,12 +30,12 @@ LANGUAGE_OPTIONS = {
             "Du får tekst frå ei fagleg presentasjon (PowerPoint eller PDF) og skal lage\n"
             "eit strukturert notat på nynorsk. Behald fagterminologi, ikkje oversett direkte til norsk vist det står på engelsk, bruk overskrifter\n"
             "og underoverskrifter der det passar, og skriv i ein stil som eignar seg\n"
-            "som førebuing til undervisning eller eksamen."
+            "som førebuing til undervisning eller eksamen. Ikkje omslutt notatet i ```markdown```-blokker."
         ),
         "user_template": (
             "Her er innhaldet frå presentasjonen. Lag eit strukturert notat på nynorsk\n"
             "som oppsummerer og forklarer innhaldet. Du skal ikkje referere til \"slides\"\n"
-            "eller \"bilete\", berre skrive eit samanhengande notat i markdown-format.\n\n"
+            "eller \"bilete\", berre skrive eit samanhengande notat i markdown-format utan å bruke ```markdown``` eller andre kodeblokker.\n\n"
             "=== START AV INPUT ===\n"
             "{tekst_her}\n"
             "=== SLUTT AV INPUT ==="
@@ -48,12 +48,12 @@ LANGUAGE_OPTIONS = {
             "Du er en faglig dyktig skribent som skriver klart og presist på bokmål.\n"
             "Du får tekst fra en faglig presentasjon (PowerPoint eller PDF) og skal lage\n"
             "et strukturert notat på bokmål. Behold fagterminologi, ikke oversett direkte fra engelsk\n"
-            "dersom det ikke gir mening, og bruk overskrifter og underoverskrifter der det passer."
+            "dersom det ikke gir mening, og bruk overskrifter og underoverskrifter der det passer. Ikke bruk ```markdown```-blokker rundt notatet."
         ),
         "user_template": (
             "Her er innholdet fra presentasjonen. Lag et strukturert notat på bokmål\n"
             "som oppsummerer og forklarer innholdet. Du skal ikke referere til \"slides\"\n"
-            "eller \"bilder\", men skrive et sammenhengende notat i markdown.\n\n"
+            "eller \"bilder\", men skrive et sammenhengende notat i markdown uten å omslutte teksten med ```markdown```.\n\n"
             "=== START AV INPUT ===\n"
             "{tekst_her}\n"
             "=== SLUTT AV INPUT ==="
@@ -66,12 +66,12 @@ LANGUAGE_OPTIONS = {
             "You are an expert technical writer who produces clear, structured notes in English.\n"
             "You receive text extracted from a presentation (PowerPoint or PDF) and must create\n"
             "a study note. Keep domain terminology, avoid literal translations that harm meaning,\n"
-            "and use headings and subheadings where appropriate to prepare the reader for teaching or exams."
+            "and use headings and subheadings where appropriate to prepare the reader for teaching or exams. Never wrap the output in ```markdown``` code fences."
         ),
         "user_template": (
             "Here is the content from the presentation. Produce a structured note in English\n"
             "that summarizes and explains the material. Do not mention \"slides\" or \"images\";\n"
-            "write a continuous markdown document instead.\n\n"
+            "write a continuous markdown document instead, but do not surround the note with ```markdown``` fences.\n\n"
             "=== START OF INPUT ===\n"
             "{tekst_her}\n"
             "=== END OF INPUT ==="
