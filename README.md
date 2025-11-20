@@ -109,3 +109,12 @@ To run Note Maker as a standalone desktop app (without Docker), follow these ste
 > [!NOTE]
 > On Linux, you may need system dependencies for the GUI window (GTK/Qt).
 > On Ubuntu/Debian: `sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-3.0`
+
+## Automated Builds (GitHub Actions)
+
+Since PyInstaller builds are specific to the OS they run on (you can't build a Windows `.exe` on Linux), this project includes a GitHub Actions workflow to build for all platforms automatically.
+
+1.  Push your code to GitHub.
+2.  Go to the **Actions** tab in your repository.
+3.  Click on the latest **Build Native App** run.
+4.  Scroll down to **Artifacts** and download the version for your OS (`note-maker-Windows`, `note-maker-macOS`, etc.).
