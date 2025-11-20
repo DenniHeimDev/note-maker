@@ -7,20 +7,14 @@ const submitBtn = document.querySelector("#submit-btn");
 const resultSection = document.querySelector("#result");
 const notePathEl = document.querySelector("#note-path");
 const copyPathEl = document.querySelector("#copy-path");
-const downloadLink = document.querySelector("#download-link");
 const notePreview = document.querySelector("#note-preview");
-const copyMarkdownBtn = document.querySelector("#copy-markdown");
 const sourceRadios = document.querySelectorAll('input[name="source_mode"]');
 const sourceSections = document.querySelectorAll(".source-mode");
 const existingPathInput = document.querySelector("#existing-path");
 const outputDirInput = document.querySelector("#output-dir");
 const copyDirInput = document.querySelector("#copy-dir");
-const hints = {
-  input: document.querySelector("#input-root-hint"),
-  output: document.querySelector("#output-root-hint"),
-  copy: document.querySelector("#copy-root-hint"),
-};
 const browseButtons = document.querySelectorAll(".browse-btn");
+
 const modal = document.querySelector("#browser-modal");
 const modalTitle = document.querySelector("#browser-title");
 const modalRoot = document.querySelector("#browser-root");
@@ -63,7 +57,6 @@ async function loadOptions() {
     optionsState.paths = data.paths || {};
     optionsState.config = data.config || null;
     populateModelOptions(data);
-    updateHints();
     handleConfigState();
   } catch (error) {
     console.error(error);
@@ -110,21 +103,7 @@ function handleConfigState() {
       closeConfigModal();
     }
   }
-  updateHints();
   updateSubmitState();
-}
-
-/**
- * Update helper text for path inputs.
- */
-function updateHints() {
-  hints.input.textContent = optionsState.paths.inputRoot
-    ? `Input root: ${optionsState.paths.inputRoot}`
-    : "";
-  hints.output.textContent = optionsState.paths.outputRoot
-    ? `Output root: ${optionsState.paths.outputRoot}`
-    : "";
-  hints.copy.textContent = optionsState.paths.copyRoot ? `Copy root: ${optionsState.paths.copyRoot}` : "";
 }
 
 /**
@@ -350,8 +329,6 @@ form?.addEventListener("submit", async (event) => {
     const payload = await response.json();
     statusText.textContent = `Ferdig! Notatet ligg i ${payload.outputDir}.`;
     notePathEl.textContent = payload.notePath;
-    downloadLink.href = payload.downloadUrl;
-    downloadLink.setAttribute("download", payload.noteName);
     notePreview.textContent = payload.noteText;
     if (payload.copiedPath) {
       copyPathEl.hidden = false;
@@ -361,16 +338,6 @@ form?.addEventListener("submit", async (event) => {
       copyPathEl.textContent = "";
     }
     resultSection.hidden = false;
-    copyMarkdownBtn.onclick = async () => {
-      try {
-        await navigator.clipboard.writeText(payload.noteText);
-        copyMarkdownBtn.textContent = "Kopiert!";
-        setTimeout(() => (copyMarkdownBtn.textContent = "Copy Markdown"), 1500);
-      } catch (err) {
-        console.error(err);
-        copyMarkdownBtn.textContent = "Feil ved kopiering";
-      }
-    };
   } catch (error) {
     console.error(error);
     statusText.textContent = error.message;

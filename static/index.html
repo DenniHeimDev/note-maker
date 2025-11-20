@@ -14,102 +14,87 @@
 </head>
 
 <body>
-  <header>
-    <div class="container">
-      <div class="header-row">
-        <div>
-          <h1>Note Maker</h1>
-          <p>Turn PDF/PPTX decks into structured notes using GPT directly in your browser.</p>
-        </div>
-        <button id="config-btn" class="btn secondary" type="button">Edit configuration</button>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>Note Maker</h1>
+        <p>PDF/PPTX to Notes</p>
       </div>
-    </div>
-  </header>
-  <main class="container">
-    <section class="card">
+
       <form id="note-form">
-        <h2>Source</h2>
-        <div class="radio-row">
-          <label>
-            <input type="radio" name="source_mode" value="upload" checked />
-            Upload file
-          </label>
-          <label>
-            <input type="radio" name="source_mode" value="browse" />
-            Use mounted file
-          </label>
-        </div>
-        <div class="source-mode" data-mode="upload">
-          <div class="form-row">
-            <label for="file">Presentation (.pdf / .pptx)</label>
-            <input id="file" name="file" type="file" accept=".pdf,.pptx" />
+        <div class="control-group">
+          <div class="group-header">Source</div>
+          <div class="radio-row compact">
+            <label><input type="radio" name="source_mode" value="upload" checked /> Upload</label>
+            <label><input type="radio" name="source_mode" value="browse" /> Mounted</label>
           </div>
-        </div>
-        <div class="source-mode hidden" data-mode="browse">
-          <label for="existing-path">Mounted file path</label>
-          <div class="browse-field">
-            <input id="existing-path" name="existing_path" type="text" placeholder="Select from input folder"
-              autocomplete="off" />
-            <button type="button" class="btn tertiary browse-btn" data-root="input" data-select="file">
-              Browse
-            </button>
-          </div>
-          <p class="hint" id="input-root-hint"></p>
-        </div>
 
-        <h2>Model & Language</h2>
-        <div class="grid">
-          <div class="form-row">
-            <label for="model">Model</label>
-            <select id="model" name="model"></select>
+          <div class="source-mode" data-mode="upload">
+            <input id="file" name="file" type="file" accept=".pdf,.pptx" class="compact-input" />
           </div>
-          <div class="form-row">
-            <label for="language">Language</label>
-            <select id="language" name="language"></select>
+
+          <div class="source-mode hidden" data-mode="browse">
+            <div class="input-group">
+              <input id="existing-path" name="existing_path" type="text" placeholder="Select file..."
+                autocomplete="off" />
+              <button type="button" class="btn icon-only browse-btn" data-root="input" data-select="file"
+                title="Browse">📂</button>
+            </div>
           </div>
         </div>
 
-        <h2>Output Options</h2>
-        <div class="form-row">
-          <label for="output-dir">Output folder</label>
-          <div class="browse-field">
-            <input id="output-dir" name="output_dir" type="text" placeholder="Use default output folder"
-              autocomplete="off" />
-            <button type="button" class="btn tertiary browse-btn" data-root="output" data-select="dir">Browse</button>
+        <div class="control-group">
+          <div class="group-header">Settings</div>
+          <div class="grid-2">
+            <div>
+              <label for="model">Model</label>
+              <select id="model" name="model"></select>
+            </div>
+            <div>
+              <label for="language">Language</label>
+              <select id="language" name="language"></select>
+            </div>
           </div>
-          <p class="hint" id="output-root-hint"></p>
-        </div>
-        <div class="form-row">
-          <label for="copy-dir">Copy folder</label>
-          <div class="browse-field">
-            <input id="copy-dir" name="copy_dir" type="text" placeholder="Use default copy folder" autocomplete="off" />
-            <button type="button" class="btn tertiary browse-btn" data-root="copy" data-select="dir">Browse</button>
-          </div>
-          <p class="hint" id="copy-root-hint"></p>
         </div>
 
-        <div class="form-checkbox">
-          <input id="copy_source" name="copy_source" type="checkbox" />
-          <label for="copy_source">Copy original presentation to the selected copy folder</label>
+        <div class="control-group">
+          <div class="group-header">Output</div>
+          <div class="input-group mb-2">
+            <input id="output-dir" name="output_dir" type="text" placeholder="Default output" autocomplete="off" />
+            <button type="button" class="btn icon-only browse-btn" data-root="output" data-select="dir"
+              title="Browse">📂</button>
+          </div>
+          <div class="input-group mb-2">
+            <input id="copy-dir" name="copy_dir" type="text" placeholder="Default copy" autocomplete="off" />
+            <button type="button" class="btn icon-only browse-btn" data-root="copy" data-select="dir"
+              title="Browse">📂</button>
+          </div>
+          <div class="checkbox-row">
+            <input id="copy_source" name="copy_source" type="checkbox" />
+            <label for="copy_source">Copy original</label>
+          </div>
         </div>
-        <button type="submit" id="submit-btn">Generate note</button>
+
+        <div class="actions">
+          <button type="submit" id="submit-btn" class="btn primary">Generate Note</button>
+          <button id="config-btn" class="btn secondary small" type="button">Config</button>
+        </div>
       </form>
-    </section>
-    <section class="card" id="status-panel">
-      <h2>Status</h2>
-      <p id="status-text">Ready when you are. Upload a file to begin.</p>
-      <div id="result" hidden>
-        <h3>Result</h3>
-        <p><strong>Saved file:</strong> <span id="note-path"></span></p>
-        <p class="copy-path" id="copy-path" hidden></p>
-        <div class="button-row">
-          <a id="download-link" class="btn secondary" href="#" download>Download note</a>
-          <button id="copy-markdown" class="btn tertiary" type="button">Copy Markdown</button>
+    </aside>
+
+    <main class="preview-pane">
+      <div class="pane-header">
+        <h2>Result Preview</h2>
+        <div id="result" class="result-actions" hidden>
+          <span id="note-path" class="path-display"></span>
         </div>
       </div>
-      <pre id="note-preview"></pre>
-    </section>
-  </main>
+      <div class="preview-content">
+        <div id="status-text" class="status-placeholder">Ready to generate.</div>
+        <pre id="note-preview"></pre>
+      </div>
+    </main>
+  </div>
   <div id="browser-modal" class="modal hidden" aria-hidden="true">
     <div class="modal-content">
       <div class="modal-header">
