@@ -3,75 +3,87 @@
 Note Maker is a local-first web app that turns PDF or PowerPoint presentations into structured study notes with the help of OpenAI's GPT models. Everything runs on your machine: the FastAPI backend processes uploads, the browser UI drives the workflow, and the only external call goes to OpenAI.
 
 ## Features
-- Extracts raw text from `.pptx` and `.pdf` decks (tables included) before handing it to GPT.
-- Ships with opinionated prompts for Nynorsk, Bokmål, and English plus a configurable model list (defaults to `gpt-5.1`).
-- Copies the original presentation into an archive folder when requested so you can keep source material next to each note.
-- Lets you browse mounted folders directly in the browser to pick source files or override the default output/copy directories—no more manual `.env` edits after setup.
-- Includes a built-in `.env` editor: if no configuration exists you’re prompted immediately in the browser, and you can revisit the modal any time via “Edit configuration”.
-- Runs as a browser-based UI powered by FastAPI + vanilla JavaScript—no Tkinter/X11 requirements anymore.
+- **Local-First**: Runs entirely on your machine using Docker.
+- **Format Support**: Extracts text from `.pptx` and `.pdf` decks (tables included).
+- **Language Options**: Pre-configured prompts for Nynorsk, Bokmål, and English.
+- **Archive**: Optionally copies the original presentation to a backup folder.
+- **Browser UI**: Modern web interface to manage files and configuration.
+- **Config Editor**: Built-in `.env` editor in the browser.
 
-## Requirements
-- Python 3.10+ (needed for the setup helpers or if you run the app without Docker).
-- Docker and Docker Compose (used by `run.sh` to build and run the FastAPI server).
-- An OpenAI API key with access to the GPT models you want to target.
+> [!NOTE]
+> **Language Support**: The application documentation and code comments are in English, but the user interface (UI) and user-facing messages are in **Norwegian** to support the primary user base.
 
-## Getting Started
-1. **Configure environment** – Choose `python setup.py` (GUI helper) or `python setup_cli.py` (CLI) and follow the prompts.  
-   Prefer to stay in the browser? Just start the app: if `.env` is missing you’ll be prompted to fill in the OpenAI key and default folders immediately.
-2. **Start the container** – Run `./run.sh`. The script loads `.env`, exports `OPENAI_API_KEY`, ensures your input/output/copy folders exist, and launches `docker compose up --build`.
-3. **Use the web UI** – Once Docker prints that the server is ready, open `http://localhost:8000` in your browser. Upload a PDF/PPTX *or* pick an existing file from the mounted input folder, tweak the output/copy directories if needed, choose a model/language, and click **Generate note**. The page shows live status plus download/copy buttons when GPT finishes.
+## Project Structure
 
-## Configuration Reference
-The application reads configuration exclusively from environment variables (which the setup helpers write into `.env`):
-
-```dotenv
-OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
-HOST_INPUT_PATH=/path/on/host/with/presentations
-HOST_OUTPUT_PATH=/path/on/host/for/notes
-HOST_COPY_PATH=/path/on/host/for/presentation-backups
+```
+note-maker/
+├── note_maker/           # Core application logic
+│   ├── core.py           # Text extraction and OpenAI integration
+│   └── server.py         # FastAPI backend and API endpoints
+├── static/               # Frontend assets
+│   ├── index.html        # Main UI structure
+│   ├── app.js            # Frontend logic
+│   └── styles.css        # Styling
+├── config_helpers.py     # Configuration and .env management
+├── run.sh                # Entry point script (Docker Compose wrapper)
+├── setup.py              # GUI setup assistant
+├── setup_cli.py          # CLI setup assistant
+├── docker-compose.yml    # Docker services configuration
+└── requirements.txt      # Python dependencies
 ```
 
-- `HOST_OUTPUT_PATH` determines where generated Markdown notes land (and is where the UI fetches download links from).
-- `HOST_COPY_PATH` is used when the “copy presentation” checkbox is selected; files are deduplicated automatically.
+## Requirements
+- **Docker** and **Docker Compose**: Required to run the application via `run.sh`.
+- **Python 3.10+**: Required only if you want to run the setup helpers (`setup.py`/`setup_cli.py`) or run the app without Docker.
+- **OpenAI API Key**: Access to GPT models (e.g., `gpt-4o`, `gpt-5`).
 
-If you prefer to manage configuration manually, mirror the same keys in your own `.env` or exported shell variables before running `./run.sh`.
+## Getting Started
 
-## Setup Helpers
-- `python setup.py` launches a Tkinter assistant with masked API key entry, directory pickers, inline validation, and a “Test mapper” button that creates missing folders before saving `.env`.
-- `python setup_cli.py` is the original terminal-based helper that asks the same questions if you prefer the keyboard-only flow.
+1.  **Configure Environment**
+    -   **GUI**: Run `python setup.py` for a graphical assistant.
+    -   **CLI**: Run `python setup_cli.py` for a terminal-based setup.
+    -   **Browser**: You can also skip this and configure everything in the browser on first launch.
 
-Both helpers write identical `.env` files, so you can switch between them at any time.
+2.  **Start the Application**
+    Run the start script:
+    ```bash
+    ./run.sh
+    ```
+    This script ensures your environment is set up and launches the container.
 
-## In-Browser Configuration
-- Click **Edit configuration** (or wait for the automatic prompt on first launch) to manage `.env` directly from the UI.
-- The modal stores your OpenAI API key plus the host folders that `run.sh` mounts into Docker. Leaving the API key blank keeps the existing one, but when no `.env` exists you must supply a key before using the app.
-- Configuration changes take effect immediately for the running server and are written back to `.env` for future sessions.
+3.  **Use the Web UI**
+    Open `http://localhost:8000` in your browser.
+    -   **Upload**: Drag & drop a PDF/PPTX file.
+    -   **Select**: Pick an existing file from your mounted input folder.
+    -   **Generate**: Choose your model and language, then click **Generate note**.
+
+## Configuration
+
+The application uses a `.env` file for configuration. You can edit this file directly, use the setup scripts, or use the "Edit configuration" button in the web UI.
+
+| Variable | Description |
+| :--- | :--- |
+| `OPENAI_API_KEY` | Your OpenAI API key. |
+| `HOST_INPUT_PATH` | Local folder containing presentations to read. |
+| `HOST_OUTPUT_PATH` | Local folder where generated notes will be saved. |
+| `HOST_COPY_PATH` | Local folder for backing up presentations (optional). |
 
 ## Running Without Docker
-You can run the FastAPI server directly if you have Python and the dependencies installed locally:
+
+If you prefer to run the FastAPI server directly:
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-export OPENAI_API_KEY=...
+export OPENAI_API_KEY=sk-...
 uvicorn note_maker.server:app --reload
 ```
 
-Then visit `http://localhost:8000` just like when using Docker. Optional environment variables (`HOST_OUTPUT_DIR`, `HOST_COPY_DIR`) still control where generated files are stored.
-
-## Mounted Folder Picker
-- The backend mounts three host folders (input/output/copy) as defined in `.env`. The browser UI exposes them through a safe picker so you can navigate subfolders, choose an existing deck, or redirect the exported Markdown/copied files to a different location without rerunning the setup helpers.
-- Paths are always constrained to the configured roots, so you can’t accidentally read or write outside the volumes shared with Docker.
-
-## Notes on ChatGPT Usage
-- The list of models lives in `note_maker/core.py` (`AVAILABLE_MODELS`). Add or remove names there if OpenAI rolls out new versions.
-- Prompts for each supported language are defined in `LANGUAGE_OPTIONS`. Adjust them to change tone, formatting rules, or add more languages.
-- The server never exposes your API key to the browser; only the backend calls OpenAI.
+Visit `http://localhost:8000` to use the app.
 
 ## Troubleshooting
-- **“OPENAI_API_KEY is not set”** – Ensure `.env` exists or export the key in your shell before running `./run.sh`.
-- **Upload errors** – Only `.pdf` and `.pptx` files are accepted. If your deck is huge, be patient: extraction happens before the request reaches GPT.
-- **Permission errors / missing folders** – Double-check that the host paths in `.env` point to locations Docker Desktop/WSL can mount and that your user has read/write rights.
 
-Feel free to extend the prompts, add languages, or build a richer frontend—everything is intentionally small so you can customize it quickly.
+-   **"OPENAI_API_KEY is not set"**: Ensure `.env` exists or the key is exported in your shell.
+-   **Upload errors**: Only `.pdf` and `.pptx` files are supported. Large files may take time to extract.
+-   **Permission errors**: Ensure Docker has permission to mount the host directories specified in `.env`.
