@@ -87,3 +87,23 @@ Visit `http://localhost:8000` to use the app.
 -   **"OPENAI_API_KEY is not set"**: Ensure `.env` exists or the key is exported in your shell.
 -   **Upload errors**: Only `.pdf` and `.pptx` files are supported. Large files may take time to extract.
 -   **Permission errors**: Ensure Docker has permission to mount the host directories specified in `.env`.
+
+## Building Native App
+
+You can bundle the application into a standalone executable (no Docker required for the end user) using PyInstaller.
+
+1.  **Install dependencies**:
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+2.  **Build the executable**:
+    ```bash
+    pyinstaller note_maker.spec
+    ```
+
+3.  **Run**:
+    -   **Windows**: `dist\note-maker.exe`
+    -   **macOS**: `dist/note-maker.app` (or the executable inside `dist/note-maker`)
+
+The build process bundles the Python interpreter, all dependencies, and the `static/` assets into a single file/folder.
