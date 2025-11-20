@@ -90,20 +90,22 @@ Visit `http://localhost:8000` to use the app.
 
 ## Building Native App
 
-You can bundle the application into a standalone executable (no Docker required for the end user) using PyInstaller.
+## Building Native App
 
-1.  **Install dependencies**:
+To run Note Maker as a standalone desktop app (without Docker), follow these steps:
+
+1.  **Install Python**: Ensure you have Python 3.10+ installed.
+2.  **Run the Build Script**:
     ```bash
-    pip install -r requirements.txt
+    python build_native.py
     ```
+    This script will automatically install dependencies and build the application.
 
-2.  **Build the executable**:
-    ```bash
-    pyinstaller note_maker.spec
-    ```
+3.  **Launch**:
+    -   **Windows**: Open `dist\note-maker\note-maker.exe`
+    -   **macOS**: Open `dist/note-maker.app`
+    -   **Linux**: Run `dist/note-maker/note-maker`
 
-3.  **Run**:
-    -   **Windows**: `dist\note-maker.exe`
-    -   **macOS**: `dist/note-maker.app` (or the executable inside `dist/note-maker`)
-
-The build process bundles the Python interpreter, all dependencies, and the `static/` assets into a single file/folder.
+> [!NOTE]
+> On Linux, you may need system dependencies for the GUI window (GTK/Qt).
+> On Ubuntu/Debian: `sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-3.0`
