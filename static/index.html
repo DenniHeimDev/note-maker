@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Note Maker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <header>
+      <div class="container">
+        <div class="header-row">
+          <div>
+            <h1>Note Maker</h1>
+            <p>Turn PDF/PPTX decks into structured notes using GPT directly in your browser.</p>
+          </div>
+          <button id="config-btn" class="btn secondary" type="button">Edit configuration</button>
+        </div>
+      </div>
+    </header>
+    <main class="container">
+      <section class="card">
+        <form id="note-form">
+          <h2>Source</h2>
+          <div class="radio-row">
+            <label>
+              <input type="radio" name="source_mode" value="upload" checked />
+              Upload file
+            </label>
+            <label>
+              <input type="radio" name="source_mode" value="browse" />
+              Use mounted file
+            </label>
+          </div>
+          <div class="source-mode" data-mode="upload">
+            <div class="form-row">
+              <label for="file">Presentation (.pdf / .pptx)</label>
+              <input id="file" name="file" type="file" accept=".pdf,.pptx" />
+            </div>
+          </div>
+          <div class="source-mode hidden" data-mode="browse">
+            <label for="existing-path">Mounted file path</label>
+            <div class="browse-field">
+              <input
+                id="existing-path"
+                name="existing_path"
+                type="text"
+                placeholder="Select from input folder"
+                autocomplete="off"
+              />
+              <button type="button" class="btn tertiary browse-btn" data-root="input" data-select="file">
+                Browse
+              </button>
+            </div>
+            <p class="hint" id="input-root-hint"></p>
+          </div>
+
+          <h2>Model & Language</h2>
+          <div class="grid">
+            <div class="form-row">
+              <label for="model">Model</label>
+              <select id="model" name="model"></select>
+            </div>
+            <div class="form-row">
+              <label for="language">Language</label>
+              <select id="language" name="language"></select>
+            </div>
+          </div>
+
+          <h2>Output Options</h2>
+          <div class="form-row">
+            <label for="output-dir">Output folder</label>
+            <div class="browse-field">
+              <input
+                id="output-dir"
+                name="output_dir"
+                type="text"
+                placeholder="Use default output folder"
+                autocomplete="off"
+              />
+              <button type="button" class="btn tertiary browse-btn" data-root="output" data-select="dir">Browse</button>
+            </div>
+            <p class="hint" id="output-root-hint"></p>
+          </div>
+          <div class="form-row">
+            <label for="copy-dir">Copy folder</label>
+            <div class="browse-field">
+              <input
+                id="copy-dir"
+                name="copy_dir"
+                type="text"
+                placeholder="Use default copy folder"
+                autocomplete="off"
+              />
+              <button type="button" class="btn tertiary browse-btn" data-root="copy" data-select="dir">Browse</button>
+            </div>
+            <p class="hint" id="copy-root-hint"></p>
+          </div>
+
+          <div class="form-checkbox">
+            <input id="copy_source" name="copy_source" type="checkbox" />
+            <label for="copy_source">Copy original presentation to the selected copy folder</label>
+          </div>
+          <button type="submit" id="submit-btn">Generate note</button>
+        </form>
+      </section>
+      <section class="card" id="status-panel">
+        <h2>Status</h2>
+        <p id="status-text">Ready when you are. Upload a file to begin.</p>
+        <div id="result" hidden>
+          <h3>Result</h3>
+          <p><strong>Saved file:</strong> <span id="note-path"></span></p>
+          <p class="copy-path" id="copy-path" hidden></p>
+          <div class="button-row">
+            <a id="download-link" class="btn secondary" href="#" download>Download note</a>
+            <button id="copy-markdown" class="btn tertiary" type="button">Copy Markdown</button>
+          </div>
+        </div>
+        <pre id="note-preview"></pre>
+      </section>
+    </main>
+    <div id="browser-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="browser-title">Browse</h3>
+          <button type="button" id="browser-close" class="btn tertiary">Close</button>
+        </div>
+        <p class="hint" id="browser-root"></p>
+        <div class="browser-path">
+          <button type="button" id="browser-up" class="btn tertiary">↑ Up one level</button>
+          <span id="browser-current">/</span>
+        </div>
+        <ul id="browser-entries" class="browser-list"></ul>
+        <div class="modal-actions">
+          <button type="button" id="browser-select" class="btn secondary">Select this folder</button>
+        </div>
+      </div>
+    </div>
+    <div id="config-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Environment configuration</h3>
+          <button type="button" id="config-close" class="btn tertiary">Close</button>
+        </div>
+        <form id="config-form">
+          <p class="hint" id="config-message"></p>
+          <div class="form-row">
+            <label for="config-api-key">OpenAI API key</label>
+            <input id="config-api-key" type="password" autocomplete="off" placeholder="sk-..." />
+          </div>
+          <div class="form-row">
+            <label for="config-input-path">Host input folder</label>
+            <input id="config-input-path" type="text" autocomplete="off" />
+          </div>
+          <div class="form-row">
+            <label for="config-output-path">Host output folder</label>
+            <input id="config-output-path" type="text" autocomplete="off" />
+          </div>
+          <div class="form-row">
+            <label for="config-copy-path">Host copy folder</label>
+            <input id="config-copy-path" type="text" autocomplete="off" />
+          </div>
+          <div class="modal-actions">
+            <button type="submit" class="btn secondary">Save configuration</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <script type="module" src="/static/app.js"></script>
+  </body>
+</html>

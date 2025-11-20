@@ -1,4 +1,7 @@
+fastapi
 openai
 python-pptx
 pymupdf
 python-dotenv
+python-multipart
+uvicorn

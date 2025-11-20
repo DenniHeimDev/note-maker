@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
+#
+# Entry point script to build and run the note-maker application using Docker Compose.
+# It checks for configuration, sets up environment variables, and starts the container.
+#
 set -euo pipefail
 
 if [[ ! -f ".env" ]]; then
-  echo "Tips: Køyr python setup.py for å konfigurere lokale mapper og API-nøkkel."
+  echo "Tips: Køyr python setup.py (GUI) eller python setup_cli.py (CLI) for å konfigurere mapper og API-nøkkel."
 fi
 
 read_env_value() {
@@ -81,10 +85,6 @@ echo "  Inndata:    $HOST_INPUT_PATH"
 echo "  Notat:      $HOST_OUTPUT_PATH"
 echo "  Kopi:       $HOST_COPY_PATH"
 
-if [[ "${DISPLAY:-}" == "" ]]; then
-  export DISPLAY=":0"
-  echo "DISPLAY var ikkje sett. Brukar standard :0."
-fi
-
 echo "Bygg og start konteinaren ..."
+echo "Opne http://localhost:8000 i nettlesaren din når konteinaren køyrer."
 docker compose up --build "$@"
