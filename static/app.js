@@ -52,6 +52,9 @@ let configModalForced = false;
 
 loadOptions();
 
+/**
+ * Load available options and configuration from the backend.
+ */
 async function loadOptions() {
   try {
     const res = await fetch("/api/options");
@@ -68,6 +71,10 @@ async function loadOptions() {
   }
 }
 
+/**
+ * Populate model and language selection dropdowns.
+ * @param {Object} data - The options data from the API.
+ */
 function populateModelOptions(data) {
   modelSelect.innerHTML = "";
   data.models.forEach((model) => {
@@ -87,6 +94,9 @@ function populateModelOptions(data) {
   });
 }
 
+/**
+ * Update UI based on the current configuration state.
+ */
 function handleConfigState() {
   const needsSetup = optionsState.config?.needsSetup;
   if (needsSetup) {
@@ -104,6 +114,9 @@ function handleConfigState() {
   updateSubmitState();
 }
 
+/**
+ * Update helper text for path inputs.
+ */
 function updateHints() {
   hints.input.textContent = optionsState.paths.inputRoot
     ? `Input root: ${optionsState.paths.inputRoot}`
@@ -114,6 +127,9 @@ function updateHints() {
   hints.copy.textContent = optionsState.paths.copyRoot ? `Copy root: ${optionsState.paths.copyRoot}` : "";
 }
 
+/**
+ * Enable or disable the submit button based on configuration status.
+ */
 function updateSubmitState() {
   const needsSetup = optionsState.config?.needsSetup;
   if (form) {
@@ -144,8 +160,8 @@ browseButtons.forEach((button) => {
       root === "input" && selectType === "file"
         ? "#existing-path"
         : root === "output"
-        ? "#output-dir"
-        : "#copy-dir";
+          ? "#output-dir"
+          : "#copy-dir";
     const targetInput = document.querySelector(targetInputId);
     openBrowser(root, selectType, targetInput);
   });
@@ -177,6 +193,12 @@ browserEntries.addEventListener("click", (event) => {
   }
 });
 
+/**
+ * Open the file browser modal.
+ * @param {string} root - The root directory type ('input', 'output', 'copy').
+ * @param {string} selectType - 'dir' or 'file'.
+ * @param {HTMLElement} targetInput - The input element to update with the selected path.
+ */
 async function openBrowser(root, selectType, targetInput) {
   browserState.root = root;
   browserState.selectType = selectType;
@@ -186,14 +208,17 @@ async function openBrowser(root, selectType, targetInput) {
     root === "input"
       ? "Browse input files"
       : root === "output"
-      ? "Browse output folders"
-      : "Browse copy folders";
+        ? "Browse output folders"
+        : "Browse copy folders";
   modalRoot.textContent = optionsState.paths[`${root}Root`] || "";
   modal.classList.remove("hidden");
   modal.setAttribute("aria-hidden", "false");
   await loadDirectory(root, targetInput.value.trim());
 }
 
+/**
+ * Close the file browser modal and reset state.
+ */
 function closeBrowser() {
   modal.classList.add("hidden");
   modal.setAttribute("aria-hidden", "true");
@@ -202,6 +227,11 @@ function closeBrowser() {
   browserState.targetInput = null;
 }
 
+/**
+ * Load directory contents into the browser modal.
+ * @param {string} root - The root directory type.
+ * @param {string} path - The relative path to load.
+ */
 async function loadDirectory(root, path) {
   if (!root) return;
   const params = new URLSearchParams({ root, path: path || "" });
@@ -220,6 +250,10 @@ async function loadDirectory(root, path) {
   }
 }
 
+/**
+ * Render file and directory entries in the browser list.
+ * @param {Array} entries - List of file/directory objects.
+ */
 function renderEntries(entries) {
   browserEntries.innerHTML = "";
   if (!entries.length) {
@@ -310,6 +344,10 @@ form?.addEventListener("submit", async (event) => {
   }
 });
 
+/**
+ * Toggle the loading state of the form.
+ * @param {boolean} state - True if loading, false otherwise.
+ */
 function toggleLoading(state) {
   isLoading = state;
   submitBtn.textContent = state ? "Working..." : "Generate note";
@@ -350,6 +388,10 @@ configForm?.addEventListener("submit", async (event) => {
   }
 });
 
+/**
+ * Open the configuration modal.
+ * @param {boolean} force - If true, prevents closing the modal until config is valid.
+ */
 async function openConfigModal(force = false) {
   configModalForced = force;
   configCloseBtn.hidden = !!force;
@@ -371,6 +413,10 @@ async function openConfigModal(force = false) {
   }
 }
 
+/**
+ * Fill the configuration form with current values.
+ * @param {Object} configData - The configuration data.
+ */
 function fillConfigForm(configData) {
   if (!configData) {
     configApiKeyInput.placeholder = "OpenAI API key";
@@ -386,6 +432,9 @@ function fillConfigForm(configData) {
   configCopyPathInput.value = values.copyPath || "";
 }
 
+/**
+ * Close the configuration modal.
+ */
 function closeConfigModal() {
   if (configModalForced) return;
   configModal.classList.add("hidden");

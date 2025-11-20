@@ -38,6 +38,7 @@ _CONFIG_REQUIRED = True
 
 
 def _reload_env_cache() -> None:
+    """Reload configuration from the .env file."""
     global _ENV_CACHE, _CONFIG_REQUIRED
     _ENV_CACHE = parse_env_file(ENV_PATH)
     required_keys = ("OPENAI_API_KEY", "HOST_INPUT_PATH", "HOST_OUTPUT_PATH", "HOST_COPY_PATH")
@@ -48,6 +49,7 @@ def _reload_env_cache() -> None:
 
 
 def _config_values() -> dict:
+    """Return current configuration values."""
     return {
         "inputPath": _ENV_CACHE.get("HOST_INPUT_PATH", INPUT_FALLBACK),
         "outputPath": _ENV_CACHE.get("HOST_OUTPUT_PATH", OUTPUT_FALLBACK),
@@ -56,6 +58,7 @@ def _config_values() -> dict:
 
 
 def _config_summary() -> dict:
+    """Return a summary of the configuration status and values."""
     values = _config_values()
     key = _ENV_CACHE.get("OPENAI_API_KEY")
     return {
@@ -85,6 +88,7 @@ if STATIC_DIR.exists():
 
 
 def _bool_from_form(value: str | bool | None) -> bool:
+    """Convert form values to boolean."""
     if isinstance(value, bool):
         return value
     if value is None:
@@ -93,6 +97,7 @@ def _bool_from_form(value: str | bool | None) -> bool:
 
 
 def _read_index() -> str:
+    """Read the index.html file or return a placeholder."""
     index_path = STATIC_DIR / "index.html"
     if not index_path.exists():
         return "<h1>note-maker</h1><p>Frontend manglar. Bygg static/.</p>"
@@ -129,6 +134,7 @@ def api_options() -> dict:
 
 
 def _resolve_inside(base: Path, relative_path: str) -> Path:
+    """Resolve a relative path within a base directory, preventing traversal."""
     cleaned = Path(relative_path) if relative_path else Path(".")
     candidate = (base / cleaned).resolve()
     try:
@@ -139,6 +145,7 @@ def _resolve_inside(base: Path, relative_path: str) -> Path:
 
 
 def _list_directory(base: Path, relative: str, include_files: bool) -> dict:
+    """List contents of a directory."""
     directory = _resolve_inside(base, relative)
     base_resolved = base.resolve()
     entries = []

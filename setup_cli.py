@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Interactive setup utility for note-maker.
+"""
+Interactive setup utility for note-maker.
 
 The script collects the folders that should be mounted into the container and
 the OpenAI API key, then writes them to the local .env file. Any unrelated

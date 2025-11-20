@@ -133,6 +133,7 @@ def _get_client() -> OpenAI:
 
 
 def extract_text_from_pptx(file_path: str) -> str:
+    """Extract text content from a PowerPoint presentation."""
     presentation = Presentation(file_path)
     sections = []
     for slide in presentation.slides:
@@ -154,6 +155,7 @@ def extract_text_from_pptx(file_path: str) -> str:
 
 
 def extract_text_from_pdf(file_path: str) -> str:
+    """Extract text content from a PDF file."""
     doc = fitz.open(file_path)
     pages = []
     try:
@@ -167,6 +169,7 @@ def extract_text_from_pdf(file_path: str) -> str:
 
 
 def extract_text(file_path: str) -> str:
+    """Dispatch text extraction based on file extension."""
     suffix = Path(file_path).suffix.lower()
     if suffix == ".pptx":
         return extract_text_from_pptx(file_path)
@@ -176,6 +179,7 @@ def extract_text(file_path: str) -> str:
 
 
 def _language_settings(language_key: str) -> dict:
+    """Retrieve language-specific settings."""
     settings = LANGUAGE_OPTIONS.get(language_key)
     if not settings:
         raise ValueError(f"Ugyldig språkval: {language_key}.")
@@ -183,6 +187,7 @@ def _language_settings(language_key: str) -> dict:
 
 
 def generate_note_from_text(text: str, model_name: str, language_key: str) -> str:
+    """Generate a study note from the provided text using OpenAI."""
     if not text.strip():
         raise ValueError("Fann ikkje tekst i den valde fila.")
     if model_name not in AVAILABLE_MODELS:
@@ -204,6 +209,7 @@ def generate_note_from_text(text: str, model_name: str, language_key: str) -> st
 
 
 def save_note_text(note_text: str, output_dir: Path | str, source_name: str, note_suffix: str) -> Path:
+    """Save the generated note to a markdown file."""
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     file_stem = Path(source_name).stem
@@ -218,6 +224,7 @@ def copy_source_file(
     output_dir: Path | str,
     desired_name: Optional[str] = None,
 ) -> Path:
+    """Copy the source file to the output directory, handling duplicates."""
     destination_dir = Path(output_dir)
     destination_dir.mkdir(parents=True, exist_ok=True)
 
@@ -251,6 +258,7 @@ def generate_note_from_file(
     copy_requested: bool = False,
     copy_dir: Optional[Path] = None,
 ) -> GenerationResult:
+    """Orchestrate the note generation process from a file."""
     extracted_text = extract_text(str(source_path))
     note_text = generate_note_from_text(extracted_text, model_name, language_key)
     language_settings = _language_settings(language_key)

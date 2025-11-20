@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+#
+# Entry point script to build and run the note-maker application using Docker Compose.
+# It checks for configuration, sets up environment variables, and starts the container.
+#
 set -euo pipefail
 
 if [[ ! -f ".env" ]]; then

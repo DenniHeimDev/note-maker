@@ -74,13 +74,13 @@ def write_env_file(
     preserved_lines: Iterable[str],
     path: Path = ENV_PATH,
 ) -> None:
-    lines = ["# note-maker configuration", f"# Sist oppdatert: {datetime.now():%Y-%m-%d %H:%M:%S}"]
+    lines = ["# note-maker configuration", f"# Last updated: {datetime.now():%Y-%m-%d %H:%M:%S}"]
     for key in ("OPENAI_API_KEY", "HOST_INPUT_PATH", "HOST_OUTPUT_PATH", "HOST_COPY_PATH"):
         lines.append(f"{key}={values[key]}")
     preserved = list(preserved_lines)
     if preserved:
         lines.append("")
-        lines.append("# Andre verdiar bevart frå før")
+        lines.append("# Other values preserved from before")
         lines.extend(preserved)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
