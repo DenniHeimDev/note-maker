@@ -12,11 +12,31 @@ MANAGED_KEYS = {
     "HOST_COPY_PATH",
 }
 
-INPUT_FALLBACK = "/mnt/c/Users/denni/Downloads"
-OUTPUT_FALLBACK = (
-    "/mnt/c/Users/denni/Telia Sky/Obsidian/DenniHeim's Vault/1. Projects/FORKURS"
-)
-COPY_FALLBACK = OUTPUT_FALLBACK
+def get_system_defaults() -> Dict[str, str]:
+    """Detect standard system paths for the current OS."""
+    home = Path.home()
+    
+    # Common standard paths
+    docs = home / "Documents"
+    downloads = home / "Downloads"
+    desktop = home / "Desktop"
+    
+    # Fallback if they don't exist (e.g. server environment)
+    if not docs.exists(): docs = home
+    if not downloads.exists(): downloads = home
+    
+    return {
+        "home": str(home),
+        "documents": str(docs),
+        "downloads": str(downloads),
+        "desktop": str(desktop) if desktop.exists() else str(home)
+    }
+
+# Initialize defaults dynamically
+_defaults = get_system_defaults()
+INPUT_FALLBACK = _defaults["downloads"]
+OUTPUT_FALLBACK = _defaults["documents"]
+COPY_FALLBACK = _defaults["documents"]
 
 
 def parse_env_file(path: Path = ENV_PATH) -> Dict[str, str]:

@@ -114,6 +114,12 @@ def healthcheck() -> JSONResponse:
     return JSONResponse({"status": "ok"})
 
 
+@app.get("/api/system-paths")
+def api_system_paths() -> dict:
+    """Return standard system paths for the frontend."""
+    from config_helpers import get_system_defaults
+    return get_system_defaults()
+
 @app.get("/api/options")
 def api_options() -> dict:
     config_info = _config_summary()

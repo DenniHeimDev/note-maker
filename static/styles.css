@@ -377,6 +377,19 @@ input[type="radio"] {
   color: var(--text-highlight);
 }
 
+/* Quick Access */
+.quick-access-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.quick-access-row .btn.small {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
