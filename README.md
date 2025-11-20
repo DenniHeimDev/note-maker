@@ -87,3 +87,34 @@ Visit `http://localhost:8000` to use the app.
 -   **"OPENAI_API_KEY is not set"**: Ensure `.env` exists or the key is exported in your shell.
 -   **Upload errors**: Only `.pdf` and `.pptx` files are supported. Large files may take time to extract.
 -   **Permission errors**: Ensure Docker has permission to mount the host directories specified in `.env`.
+
+## Building Native App
+
+## Building Native App
+
+To run Note Maker as a standalone desktop app (without Docker), follow these steps:
+
+1.  **Install Python**: Ensure you have Python 3.10+ installed.
+2.  **Run the Build Script**:
+    ```bash
+    python build_native.py
+    ```
+    This script will automatically install dependencies and build the application.
+
+3.  **Launch**:
+    -   **Windows**: Open `dist\note-maker\note-maker.exe`
+    -   **macOS**: Open `dist/note-maker.app`
+    -   **Linux**: Run `dist/note-maker/note-maker`
+
+> [!NOTE]
+> On Linux, you may need system dependencies for the GUI window (GTK/Qt).
+> On Ubuntu/Debian: `sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-3.0`
+
+## Automated Builds (GitHub Actions)
+
+Since PyInstaller builds are specific to the OS they run on (you can't build a Windows `.exe` on Linux), this project includes a GitHub Actions workflow to build for all platforms automatically.
+
+1.  Push your code to GitHub.
+2.  Go to the **Actions** tab in your repository.
+3.  Click on the latest **Build Native App** run.
+4.  Scroll down to **Artifacts** and download the version for your OS (`note-maker-Windows`, `note-maker-macOS`, etc.).

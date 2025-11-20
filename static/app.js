@@ -213,7 +213,42 @@ async function openBrowser(root, selectType, targetInput) {
   modalRoot.textContent = optionsState.paths[`${root}Root`] || "";
   modal.classList.remove("hidden");
   modal.setAttribute("aria-hidden", "false");
+
+  // Load quick access paths
+  loadQuickAccess();
+
   await loadDirectory(root, targetInput.value.trim());
+}
+
+async function loadQuickAccess() {
+  const container = document.querySelector("#quick-access");
+  if (!container) return;
+  container.innerHTML = "";
+
+  try {
+    const res = await fetch("/api/system-paths");
+    if (!res.ok) return;
+    const paths = await res.json();
+
+    const shortcuts = [
+      { label: "🏠 Home", path: paths.home },
+      { label: "📂 Documents", path: paths.documents },
+      { label: "⬇️ Downloads", path: paths.downloads },
+      { label: "🖥️ Desktop", path: paths.desktop },
+    ];
+
+    shortcuts.forEach(item => {
+      if (!item.path) return;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn tertiary small";
+      btn.textContent = item.label;
+      btn.onclick = () => loadDirectory(browserState.root, item.path);
+      container.appendChild(btn);
+    });
+  } catch (err) {
+    console.error("Failed to load system paths", err);
+  }
 }
 
 /**

@@ -74,9 +74,9 @@ _reload_env_cache()
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
 
-HOST_INPUT_DIR = Path(os.environ.get("HOST_INPUT_DIR", BASE_DIR / "input")).expanduser()
-HOST_OUTPUT_DIR = Path(os.environ.get("HOST_OUTPUT_DIR", BASE_DIR / "output")).expanduser()
-HOST_COPY_DIR = Path(os.environ.get("HOST_COPY_DIR", HOST_OUTPUT_DIR / "copies")).expanduser()
+HOST_INPUT_DIR = Path(os.environ.get("HOST_INPUT_PATH", INPUT_FALLBACK)).expanduser()
+HOST_OUTPUT_DIR = Path(os.environ.get("HOST_OUTPUT_PATH", OUTPUT_FALLBACK)).expanduser()
+HOST_COPY_DIR = Path(os.environ.get("HOST_COPY_PATH", COPY_FALLBACK)).expanduser()
 
 for folder in (HOST_INPUT_DIR, HOST_OUTPUT_DIR, HOST_COPY_DIR):
     folder.mkdir(parents=True, exist_ok=True)
@@ -113,6 +113,12 @@ def read_index() -> str:
 def healthcheck() -> JSONResponse:
     return JSONResponse({"status": "ok"})
 
+
+@app.get("/api/system-paths")
+def api_system_paths() -> dict:
+    """Return standard system paths for the frontend."""
+    from config_helpers import get_system_defaults
+    return get_system_defaults()
 
 @app.get("/api/options")
 def api_options() -> dict:
