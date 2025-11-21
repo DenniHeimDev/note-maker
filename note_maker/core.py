@@ -11,6 +11,8 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from pptx import Presentation
 
+from config_helpers import USER_CONFIG_DIR
+
 load_dotenv()
 
 AVAILABLE_MODELS = [
@@ -100,6 +102,7 @@ def _ensure_api_key() -> Optional[str]:
         Path(".env"),
         Path(__file__).with_name(".env"),
         Path(__file__).resolve().parent.parent / ".env",
+        USER_CONFIG_DIR / "config.env",
     ]
 
     for path in candidate_paths:

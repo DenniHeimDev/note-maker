@@ -1,10 +1,30 @@
 from __future__ import annotations
 
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Iterable, List
 
-ENV_PATH = Path(".env")
+import sys
+
+def get_user_config_dir() -> Path:
+    """Return the user-specific configuration directory."""
+    app_name = "note-maker"
+    if sys.platform == "win32":
+        base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
+    elif sys.platform == "darwin":
+        base = Path.home() / "Library" / "Application Support"
+    else:
+        # Linux / Unix
+        base = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+    
+    config_dir = base / app_name
+    config_dir.mkdir(parents=True, exist_ok=True)
+    return config_dir
+
+USER_CONFIG_DIR = get_user_config_dir()
+ENV_PATH = USER_CONFIG_DIR / "config.env"
+
 MANAGED_KEYS = {
     "OPENAI_API_KEY",
     "HOST_INPUT_PATH",
