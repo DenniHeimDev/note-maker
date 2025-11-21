@@ -7,7 +7,9 @@ const submitBtn = document.querySelector("#submit-btn");
 const resultSection = document.querySelector("#result");
 const notePathEl = document.querySelector("#note-path");
 const copyPathEl = document.querySelector("#copy-path");
+const downloadLink = document.querySelector("#download-link");
 const notePreview = document.querySelector("#note-preview");
+const copyMarkdownBtn = document.querySelector("#copy-markdown");
 const sourceRadios = document.querySelectorAll('input[name="source_mode"]');
 const sourceSections = document.querySelectorAll(".source-mode");
 const existingPathInput = document.querySelector("#existing-path");
@@ -338,6 +340,20 @@ form?.addEventListener("submit", async (event) => {
       copyPathEl.textContent = "";
     }
     resultSection.hidden = false;
+
+    downloadLink.href = payload.downloadUrl;
+    downloadLink.setAttribute("download", payload.noteName);
+
+    copyMarkdownBtn.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(payload.noteText);
+        copyMarkdownBtn.textContent = "Kopiert!";
+        setTimeout(() => (copyMarkdownBtn.textContent = "Copy"), 1500);
+      } catch (err) {
+        console.error(err);
+        copyMarkdownBtn.textContent = "Feil ved kopiering";
+      }
+    };
   } catch (error) {
     console.error(error);
     statusText.textContent = error.message;
