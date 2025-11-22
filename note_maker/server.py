@@ -43,9 +43,16 @@ def _reload_env_cache() -> None:
     _ENV_CACHE = parse_env_file(ENV_PATH)
     required_keys = ("OPENAI_API_KEY", "HOST_INPUT_PATH", "HOST_OUTPUT_PATH", "HOST_COPY_PATH")
     _CONFIG_REQUIRED = not _ENV_CACHE or any(not _ENV_CACHE.get(key) for key in required_keys)
-    api_key = _ENV_CACHE.get("OPENAI_API_KEY")
-    if api_key:
-        os.environ["OPENAI_API_KEY"] = api_key
+    for key in ("OPENAI_API_KEY", "HOST_INPUT_PATH", "HOST_OUTPUT_PATH", "HOST_COPY_PATH"):
+        val = _ENV_CACHE.get(key)
+        if val:
+            os.environ[key] = val
+
+    if "HOST_INPUT_DIR" in globals():
+        global HOST_INPUT_DIR, HOST_OUTPUT_DIR, HOST_COPY_DIR
+        HOST_INPUT_DIR = Path(os.environ.get("HOST_INPUT_PATH", INPUT_FALLBACK)).expanduser()
+        HOST_OUTPUT_DIR = Path(os.environ.get("HOST_OUTPUT_PATH", OUTPUT_FALLBACK)).expanduser()
+        HOST_COPY_DIR = Path(os.environ.get("HOST_COPY_PATH", COPY_FALLBACK)).expanduser()
 
 
 def _config_values() -> dict:

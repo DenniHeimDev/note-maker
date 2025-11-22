@@ -116,7 +116,7 @@ def write_env_file(
 ) -> None:
     lines = ["# note-maker configuration", f"# Last updated: {datetime.now():%Y-%m-%d %H:%M:%S}"]
     for key in ("OPENAI_API_KEY", "HOST_INPUT_PATH", "HOST_OUTPUT_PATH", "HOST_COPY_PATH"):
-        lines.append(f"{key}={values[key]}")
+        lines.append(f"{key}=\"{values[key]}\"")
     preserved = list(preserved_lines)
     if preserved:
         lines.append("")
