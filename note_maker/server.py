@@ -186,7 +186,7 @@ def api_browse(
         "output": HOST_OUTPUT_DIR,
         "copy": HOST_COPY_DIR,
     }[root]
-    include_files = root == "input"
+    include_files = True
     listing = _list_directory(base, path or "", include_files=include_files)
     return {
         "root": root,
