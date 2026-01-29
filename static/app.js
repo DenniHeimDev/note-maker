@@ -100,7 +100,7 @@ function handleConfigState() {
       openConfigModal(true);
     }
   } else {
-    statusText.textContent = `Output folder: ${optionsState.paths.outputRoot || "ukjent"}`;
+    statusText.textContent = `Notatmappe: ${optionsState.paths.outputRoot || "ukjent"}`;
     if (!configModalForced) {
       closeConfigModal();
     }
@@ -338,7 +338,7 @@ form?.addEventListener("submit", async (event) => {
  */
 function toggleLoading(state) {
   isLoading = state;
-  submitBtn.textContent = state ? "Working..." : "Generate note";
+  submitBtn.textContent = state ? "Arbeider…" : "Generer notat";
   updateSubmitState();
 }
 
@@ -386,7 +386,7 @@ async function openConfigModal(force = false) {
   configModal.classList.remove("hidden");
   configModal.setAttribute("aria-hidden", "false");
   configMessage.textContent = force
-    ? "Ingen .env funnen. Fyll ut felta for å starte."
+    ? "Ingen konfigurasjon funnen. Fyll ut felta for å starte."
     : "Oppdater konfigurasjonen og lagre.";
   fillConfigForm(optionsState.config);
   try {

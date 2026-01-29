@@ -4,6 +4,7 @@ services:
       context: .
     environment:
       OPENAI_API_KEY: "${OPENAI_API_KEY}"
+      # Paths *inside the container* (volumes mounted below)
       HOST_INPUT_DIR: "/host/input"
       HOST_OUTPUT_DIR: "/host/output"
       HOST_COPY_DIR: "/host/copies"
