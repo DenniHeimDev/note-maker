@@ -38,21 +38,50 @@ _CONFIG_REQUIRED = True
 
 
 def _reload_env_cache() -> None:
-    """Reload configuration from the .env file."""
+    """Reload configuration from ENV_PATH and merge in environment variables.
+
+    This makes it possible to run note-maker in Docker where values are usually
+    provided via environment variables rather than a persisted config file.
+    """
+
     global _ENV_CACHE, _CONFIG_REQUIRED
+
     _ENV_CACHE = parse_env_file(ENV_PATH)
+
+    # Backwards compatibility: earlier compose files used *_DIR inside the
+    # container. Prefer *_PATH, but accept *_DIR if provided.
+    fallback_env_aliases = {
+        "HOST_INPUT_PATH": "HOST_INPUT_DIR",
+        "HOST_OUTPUT_PATH": "HOST_OUTPUT_DIR",
+        "HOST_COPY_PATH": "HOST_COPY_DIR",
+    }
+
     required_keys = ("OPENAI_API_KEY", "HOST_INPUT_PATH", "HOST_OUTPUT_PATH", "HOST_COPY_PATH")
-    _CONFIG_REQUIRED = not _ENV_CACHE or any(not _ENV_CACHE.get(key) for key in required_keys)
-    for key in ("OPENAI_API_KEY", "HOST_INPUT_PATH", "HOST_OUTPUT_PATH", "HOST_COPY_PATH"):
+
+    for key in required_keys:
+        if _ENV_CACHE.get(key):
+            continue
+        env_value = os.environ.get(key)
+        if not env_value:
+            alias = fallback_env_aliases.get(key)
+            env_value = os.environ.get(alias) if alias else None
+        if env_value:
+            _ENV_CACHE[key] = env_value
+
+    _CONFIG_REQUIRED = any(not _ENV_CACHE.get(key) for key in required_keys)
+
+    # Export to os.environ so the rest of the app has a single source of truth.
+    for key in required_keys:
         val = _ENV_CACHE.get(key)
         if val:
             os.environ[key] = val
 
+    # If host dirs are already defined, update them.
     if "HOST_INPUT_DIR" in globals():
         global HOST_INPUT_DIR, HOST_OUTPUT_DIR, HOST_COPY_DIR
-        HOST_INPUT_DIR = Path(os.environ.get("HOST_INPUT_PATH", INPUT_FALLBACK)).expanduser()
-        HOST_OUTPUT_DIR = Path(os.environ.get("HOST_OUTPUT_PATH", OUTPUT_FALLBACK)).expanduser()
-        HOST_COPY_DIR = Path(os.environ.get("HOST_COPY_PATH", COPY_FALLBACK)).expanduser()
+        HOST_INPUT_DIR = Path(os.environ.get("HOST_INPUT_PATH") or os.environ.get("HOST_INPUT_DIR") or INPUT_FALLBACK).expanduser()
+        HOST_OUTPUT_DIR = Path(os.environ.get("HOST_OUTPUT_PATH") or os.environ.get("HOST_OUTPUT_DIR") or OUTPUT_FALLBACK).expanduser()
+        HOST_COPY_DIR = Path(os.environ.get("HOST_COPY_PATH") or os.environ.get("HOST_COPY_DIR") or COPY_FALLBACK).expanduser()
 
 
 def _config_values() -> dict:
@@ -81,9 +110,9 @@ _reload_env_cache()
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
 
-HOST_INPUT_DIR = Path(os.environ.get("HOST_INPUT_PATH", INPUT_FALLBACK)).expanduser()
-HOST_OUTPUT_DIR = Path(os.environ.get("HOST_OUTPUT_PATH", OUTPUT_FALLBACK)).expanduser()
-HOST_COPY_DIR = Path(os.environ.get("HOST_COPY_PATH", COPY_FALLBACK)).expanduser()
+HOST_INPUT_DIR = Path(os.environ.get("HOST_INPUT_PATH") or os.environ.get("HOST_INPUT_DIR") or INPUT_FALLBACK).expanduser()
+HOST_OUTPUT_DIR = Path(os.environ.get("HOST_OUTPUT_PATH") or os.environ.get("HOST_OUTPUT_DIR") or OUTPUT_FALLBACK).expanduser()
+HOST_COPY_DIR = Path(os.environ.get("HOST_COPY_PATH") or os.environ.get("HOST_COPY_DIR") or COPY_FALLBACK).expanduser()
 
 for folder in (HOST_INPUT_DIR, HOST_OUTPUT_DIR, HOST_COPY_DIR):
     folder.mkdir(parents=True, exist_ok=True)
@@ -124,8 +153,11 @@ def healthcheck() -> JSONResponse:
 @app.get("/api/system-paths")
 def api_system_paths() -> dict:
     """Return standard system paths for the frontend."""
+
     from config_helpers import get_system_defaults
+
     return get_system_defaults()
+
 
 @app.get("/api/options")
 def api_options() -> dict:

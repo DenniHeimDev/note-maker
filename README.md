@@ -8,7 +8,7 @@ Note Maker is a local-first web app that turns PDF or PowerPoint presentations i
 - **Language Options**: Pre-configured prompts for Nynorsk, Bokmål, and English.
 - **Archive**: Optionally copies the original presentation to a backup folder.
 - **Browser UI**: Modern web interface to manage files and configuration.
-- **Config Editor**: Built-in `.env` editor in the browser.
+- **Config Editor**: Built-in configuration editor in the browser.
 
 > [!NOTE]
 > **Language Support**: The application documentation and code comments are in English, but the user interface (UI) and user-facing messages are in **Norwegian** to support the primary user base.
@@ -40,6 +40,7 @@ note-maker/
 ## Getting Started
 
 1.  **Configure Environment**
+    -   **Quick start**: Copy `.env.example` → `.env` and fill in the values.
     -   **GUI**: Run `python setup.py` for a graphical assistant.
     -   **CLI**: Run `python setup_cli.py` for a terminal-based setup.
     -   **Browser**: You can also skip this and configure everything in the browser on first launch.
@@ -59,7 +60,7 @@ note-maker/
 
 ## Configuration
 
-The application uses a `.env` file for configuration. You can edit this file directly, use the setup scripts, or use the "Edit configuration" button in the web UI.
+The application reads configuration from a local `.env` file (recommended when running from this repo) and/or from environment variables. In packaged/native usage, it falls back to a per-user config file (e.g. `~/.config/note-maker/config.env` on Linux). You can override the config path via `NOTE_MAKER_ENV_PATH`.
 
 | Variable | Description |
 | :--- | :--- |
@@ -84,11 +85,9 @@ Visit `http://localhost:8000` to use the app.
 
 ## Troubleshooting
 
--   **"OPENAI_API_KEY is not set"**: Ensure `.env` exists or the key is exported in your shell.
+-   **"OPENAI_API_KEY is not set"**: Ensure your config file contains the key (see Configuration above) or export it in your shell.
 -   **Upload errors**: Only `.pdf` and `.pptx` files are supported. Large files may take time to extract.
 -   **Permission errors**: Ensure Docker has permission to mount the host directories specified in `.env`.
-
-## Building Native App
 
 ## Building Native App
 
@@ -109,6 +108,10 @@ To run Note Maker as a standalone desktop app (without Docker), follow these ste
 > [!NOTE]
 > On Linux, you may need system dependencies for the GUI window (GTK/Qt).
 > On Ubuntu/Debian: `sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-3.0`
+
+## Development Plan / Roadmap
+
+See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Automated Builds (GitHub Actions)
 

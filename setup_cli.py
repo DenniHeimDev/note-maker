@@ -3,8 +3,8 @@
 Interactive setup utility for note-maker.
 
 The script collects the folders that should be mounted into the container and
-the OpenAI API key, then writes them to the local .env file. Any unrelated
-entries that already exist in .env are preserved at the bottom of the file.
+the OpenAI API key, then writes them to the app config file. Any unrelated
+entries that already exist in the config file are preserved at the bottom.
 """
 
 from __future__ import annotations
