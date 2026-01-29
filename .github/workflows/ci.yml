@@ -21,5 +21,7 @@ jobs:
           pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Run smoke tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
         run: |
-          pytest -q
+          python -m pytest -q
