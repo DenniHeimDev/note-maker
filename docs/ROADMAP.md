@@ -31,7 +31,7 @@ This roadmap is meant to be practical: what to build next, why, and in what orde
 **PDF**
 - ~~Preserve basic page structure (page markers) to improve prompts~~
 - Optional OCR mode for scanned PDFs (e.g., `pytesseract`) with a clear warning about speed
-- Improve table extraction strategy (currently “text” only)
+- ~~Improve table extraction strategy (currently “text” only)~~
 
 ## 3) Prompting + output formats
 
