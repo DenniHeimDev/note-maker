@@ -243,25 +243,36 @@ select:focus {
 }
 
 .pane-header {
-  padding: 1.5rem;
+  padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--border-light);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 60px;
+  min-height: 60px;
+  height: auto;
   box-sizing: border-box;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .pane-header h2 {
   margin: 0;
   font-size: 1.1rem;
   color: var(--text-highlight);
+  flex: 0 0 auto;
 }
 
 .result-actions {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+}
+
+.result-actions .btn {
+  flex-shrink: 0;
 }
 
 .path-display {
@@ -271,6 +282,10 @@ select:focus {
   background: rgba(0, 0, 0, 0.2);
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
+  max-width: min(560px, 60vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .preview-content {
