@@ -211,10 +211,51 @@ def extract_text_from_pptx(file_path: str, include_notes: bool = False) -> str:
     return "\n\n".join(sections)
 
 
+def _extract_tables_from_pdf_page(page) -> list[str]:
+    """Best-effort table extraction from a PDF page.
+
+    Uses PyMuPDF's `page.find_tables()` when available. Output is intentionally
+    simple (pipe-separated rows) to keep it robust across PDFs.
+    """
+
+    if not hasattr(page, "find_tables"):
+        return []
+
+    try:
+        finder = page.find_tables()
+    except Exception:
+        return []
+
+    tables = getattr(finder, "tables", None) or []
+    lines: list[str] = []
+
+    for table_index, table in enumerate(tables, start=1):
+        extract = getattr(table, "extract", None)
+        if not callable(extract):
+            continue
+        try:
+            rows = extract()
+        except Exception:
+            continue
+        if not rows:
+            continue
+
+        lines.append(f"TABLE {table_index}:")
+        for row in rows:
+            if not row:
+                continue
+            cells = [str(cell).strip() for cell in row if cell is not None and str(cell).strip()]
+            if cells:
+                lines.append(" | ".join(cells))
+
+    return lines
+
+
 def extract_text_from_pdf(file_path: str) -> str:
     """Extract text content from a PDF file.
 
     Adds page markers when the document has multiple pages to preserve structure.
+    Also attempts best-effort table extraction.
     """
 
     doc = fitz.open(file_path)
@@ -223,12 +264,21 @@ def extract_text_from_pdf(file_path: str) -> str:
         multi_page = doc.page_count > 1
         for idx, page in enumerate(doc, start=1):
             page_text = page.get_text("text").strip()
-            if not page_text:
+            table_lines = _extract_tables_from_pdf_page(page)
+
+            if not page_text and not table_lines:
                 continue
+
+            parts: list[str] = []
             if multi_page:
-                pages.append(f"=== PAGE {idx} ===\n{page_text}")
-            else:
-                pages.append(page_text)
+                parts.append(f"=== PAGE {idx} ===")
+            if page_text:
+                parts.append(page_text)
+            if table_lines:
+                parts.append("TABLES:")
+                parts.extend(table_lines)
+
+            pages.append("\n".join(parts))
     finally:
         doc.close()
 
