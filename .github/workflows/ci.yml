@@ -1,8 +1,12 @@
 name: CI
 
 on:
+  # Run on pushes to main only (avoid duplicate runs for PR branches)
   push:
+    branches: [main]
+  # Run on pull requests targeting main
   pull_request:
+    branches: [main]
 
 jobs:
   test:
