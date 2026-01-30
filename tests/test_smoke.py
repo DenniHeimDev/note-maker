@@ -79,6 +79,7 @@ def test_generate_smoke(app_client, tmp_path):
                 "model": "gpt-5.1",
                 "language": "nynorsk",
                 "copy_source": "false",
+                "include_notes": "false",
                 "existing_path": "",
                 "output_dir": "",
                 "copy_dir": "",

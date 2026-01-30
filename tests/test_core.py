@@ -42,6 +42,33 @@ class TestExtractTextFromPptx:
         result = extract_text_from_pptx(str(pptx_path))
         assert "Hello World" in result
 
+    def test_extract_text_from_pptx_includes_title_and_notes_when_enabled(self, tmp_path: Path) -> None:
+        """Speaker notes should be included only when requested."""
+        from pptx import Presentation
+
+        pptx_path = tmp_path / "notes.pptx"
+        prs = Presentation()
+
+        # Use a title+content layout so slide.shapes.title exists.
+        slide_layout = prs.slide_layouts[1]
+        slide = prs.slides.add_slide(slide_layout)
+        slide.shapes.title.text = "My Title"
+        slide.placeholders[1].text = "Body text"
+
+        # Add speaker notes
+        slide.notes_slide.notes_text_frame.text = "These are speaker notes"
+
+        prs.save(str(pptx_path))
+
+        without = extract_text_from_pptx(str(pptx_path), include_notes=False)
+        assert "My Title" in without
+        assert "NOTES:" not in without
+
+        with_notes = extract_text_from_pptx(str(pptx_path), include_notes=True)
+        assert "TITLE: My Title" in with_notes
+        assert "NOTES:" in with_notes
+        assert "These are speaker notes" in with_notes
+
     def test_extract_text_from_empty_pptx(self, tmp_path: Path) -> None:
         """Test extraction from an empty PPTX."""
         from pptx import Presentation
