@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 import tempfile
+import time
+import uuid
 from pathlib import Path
 
 from typing import Literal, Optional
@@ -19,7 +22,7 @@ from config_helpers import (
     preview_key,
     write_env_file,
 )
-from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -117,7 +120,50 @@ HOST_COPY_DIR = Path(os.environ.get("HOST_COPY_PATH") or os.environ.get("HOST_CO
 for folder in (HOST_INPUT_DIR, HOST_OUTPUT_DIR, HOST_COPY_DIR):
     folder.mkdir(parents=True, exist_ok=True)
 
+logger = logging.getLogger("note_maker")
+
 app = FastAPI(title="note-maker web")
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Basic structured request logging + request id propagation."""
+
+    raw_request_id = request.headers.get("X-Request-Id")
+    if raw_request_id:
+        try:
+            # Only accept well-formed UUIDs and normalize to a safe hex string
+            request_id = uuid.UUID(raw_request_id).hex
+        except (ValueError, AttributeError, TypeError):
+            request_id = uuid.uuid4().hex
+    else:
+        request_id = uuid.uuid4().hex
+    start = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        duration_ms = (time.perf_counter() - start) * 1000
+        logger.exception(
+            "request failed request_id=%s method=%s path=%s duration_ms=%.1f",
+            request_id,
+            request.method,
+            request.url.path,
+            duration_ms,
+        )
+        raise
+
+    duration_ms = (time.perf_counter() - start) * 1000
+    response.headers["X-Request-Id"] = request_id
+    logger.info(
+        "request request_id=%s method=%s path=%s status=%s duration_ms=%.1f",
+        request_id,
+        request.method,
+        request.url.path,
+        response.status_code,
+        duration_ms,
+    )
+    return response
+
 
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
