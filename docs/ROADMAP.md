@@ -6,19 +6,21 @@ This roadmap is meant to be practical: what to build next, why, and in what orde
 
 **Goal:** “It works every time” for PDF/PPTX → note generation.
 
-- Add lightweight smoke tests (CI):
-  - start the FastAPI app
-  - hit `/healthz`, `/api/options`
-  - run a minimal “generate” flow with a tiny fixture file (or mocked OpenAI)
-- Add a `Makefile` or `scripts/` helpers for common tasks (lint, run, build)
-- Add structured logging (request id, duration, selected model/language)
+- ~~Add lightweight smoke tests (CI):~~
+  - ~~start the FastAPI app~~
+  - ~~hit `/healthz`, `/api/options`~~
+  - ~~run a minimal “generate” flow with a tiny fixture file (or mocked OpenAI)~~
+- ~~Add a `Makefile` or `scripts/` helpers for common tasks (lint, run, build)~~
+- ~~Add structured logging (request id, duration, selected model/language)~~
+- ~~Add more thorough unit tests for core helpers (PDF/PPTX extraction, env parsing)~~
+- ~~Stop duplicate GitHub Actions runs by scoping workflow triggers~~
 
 ## 1) UX improvements (low effort, high impact)
 
-- Better progress feedback during extraction + generation ("Extracting…", "Calling model…")
-- Show model + language in the result header
-- Persist last-used settings in browser localStorage
-- Provide a “Regenerate” button that reuses the same input settings
+- ~~Better progress feedback during extraction + generation ("Extracting…", "Calling model…")~~
+- ~~Show model + language in the result header~~
+- ~~Persist last-used settings in browser localStorage~~
+- ~~Provide a “Regenerate” button that reuses the same input settings~~
 
 ## 2) Extraction quality (make input better)
 
