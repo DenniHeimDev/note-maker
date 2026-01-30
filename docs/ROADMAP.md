@@ -25,10 +25,11 @@ This roadmap is meant to be practical: what to build next, why, and in what orde
 ## 2) Extraction quality (make input better)
 
 **PPTX**
-- Preserve basic slide structure (titles vs body) to improve prompts
-- Capture speaker notes (optional toggle)
+- ~~Preserve basic slide structure (titles vs body) to improve prompts~~
+- ~~Capture speaker notes (optional toggle)~~
 
 **PDF**
+- ~~Preserve basic page structure (page markers) to improve prompts~~
 - Optional OCR mode for scanned PDFs (e.g., `pytesseract`) with a clear warning about speed
 - Improve table extraction strategy (currently “text” only)
 
