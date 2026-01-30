@@ -124,6 +124,7 @@ async function loadOptions() {
     handleConfigState();
   } catch (error) {
     console.error(error);
+    statusText.classList.remove("hidden");
     statusText.textContent = "Kunne ikkje laste alternativ. Prøv å laste sida på nytt.";
   }
 }
@@ -156,6 +157,7 @@ function populateModelOptions(data) {
  */
 function handleConfigState() {
   const needsSetup = optionsState.config?.needsSetup;
+  statusText.classList.remove("hidden");
   if (needsSetup) {
     statusText.textContent = "Fullfør konfigureringa før du genererer notat.";
     if (!configModalForced) {
@@ -319,6 +321,7 @@ async function loadDirectory(root, path) {
     browserUpBtn.disabled = !browserState.parentPath;
   } catch (error) {
     console.error(error);
+    statusText.classList.remove("hidden");
     statusText.textContent = error.message;
   }
 }
@@ -440,6 +443,7 @@ form?.addEventListener("submit", async (event) => {
     };
   } catch (error) {
     console.error(error);
+    statusText.classList.remove("hidden");
     statusText.textContent = error.message;
   } finally {
     toggleLoading(false);
