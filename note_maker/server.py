@@ -129,7 +129,15 @@ app = FastAPI(title="note-maker web")
 async def log_requests(request: Request, call_next):
     """Basic structured request logging + request id propagation."""
 
-    request_id = request.headers.get("X-Request-Id") or uuid.uuid4().hex
+    raw_request_id = request.headers.get("X-Request-Id")
+    if raw_request_id:
+        try:
+            # Only accept well-formed UUIDs and normalize to a safe hex string
+            request_id = uuid.UUID(raw_request_id).hex
+        except (ValueError, AttributeError, TypeError):
+            request_id = uuid.uuid4().hex
+    else:
+        request_id = uuid.uuid4().hex
     start = time.perf_counter()
     try:
         response = await call_next(request)

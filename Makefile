@@ -1,4 +1,4 @@
-.PHONY: venv install install-dev test run format lint
+.PHONY: venv install install-dev test run
 
 venv:
 	python3 -m venv .venv
