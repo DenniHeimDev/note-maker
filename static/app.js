@@ -94,9 +94,8 @@ function applyUiState(data) {
     if (radio) radio.checked = true;
   }
 
-  if (typeof saved.copy_source === "boolean") {
-    const copyCheckbox = document.querySelector("#copy_source");
-    if (copyCheckbox) copyCheckbox.checked = saved.copy_source;
+  if (typeof saved.copy_source === "boolean" && copySourceCheckbox) {
+    copySourceCheckbox.checked = saved.copy_source;
   }
 
   if (typeof saved.output_dir === "string") outputDirInput.value = saved.output_dir;
