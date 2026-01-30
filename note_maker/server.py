@@ -342,6 +342,8 @@ async def api_generate(
             except FileNotFoundError:
                 pass
 
+    language_label = LANGUAGE_OPTIONS.get(language, {}).get("label", language)
+
     return {
         "noteName": result.note_path.name,
         "notePath": str(result.note_path),
@@ -350,6 +352,9 @@ async def api_generate(
         "downloadUrl": f"/api/notes/{result.note_path.name}",
         "outputDir": str(output_target),
         "copyDir": str(copy_target if copy_requested else ""),
+        "model": model,
+        "language": language,
+        "languageLabel": language_label,
     }
 
 

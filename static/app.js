@@ -5,16 +5,19 @@ const languageSelect = document.querySelector("#language");
 const statusText = document.querySelector("#status-text");
 const submitBtn = document.querySelector("#submit-btn");
 const resultSection = document.querySelector("#result");
+const resultMetaEl = document.querySelector("#result-meta");
 const notePathEl = document.querySelector("#note-path");
 const copyPathEl = document.querySelector("#copy-path");
 const downloadLink = document.querySelector("#download-link");
 const notePreview = document.querySelector("#note-preview");
 const copyMarkdownBtn = document.querySelector("#copy-markdown");
+const regenerateBtn = document.querySelector("#regenerate");
 const sourceRadios = document.querySelectorAll('input[name="source_mode"]');
 const sourceSections = document.querySelectorAll(".source-mode");
 const existingPathInput = document.querySelector("#existing-path");
 const outputDirInput = document.querySelector("#output-dir");
 const copyDirInput = document.querySelector("#copy-dir");
+const copySourceCheckbox = document.querySelector("#copy_source");
 const browseButtons = document.querySelectorAll(".browse-btn");
 
 const modal = document.querySelector("#browser-modal");
@@ -43,10 +46,69 @@ const browserState = {
   parentPath: "",
   targetInput: null,
 };
+
+const STORAGE_KEY = "note-maker.ui.v1";
+
 let isLoading = false;
 let configModalForced = false;
 
 loadOptions();
+
+function loadUiState() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveUiState(patch) {
+  const current = loadUiState();
+  const next = { ...current, ...patch };
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  } catch (error) {
+    // Ignore storage errors (private mode, quota, etc.)
+    console.debug("Failed to save UI state", error);
+  }
+}
+
+function applyUiState(data) {
+  const saved = loadUiState();
+
+  if (saved.model && Array.isArray(data.models) && data.models.includes(saved.model)) {
+    modelSelect.value = saved.model;
+  }
+  if (
+    saved.language &&
+    Array.isArray(data.languages) &&
+    data.languages.some((lang) => lang.key === saved.language)
+  ) {
+    languageSelect.value = saved.language;
+  }
+
+  if (saved.source_mode && ["upload", "browse"].includes(saved.source_mode)) {
+    const radio = document.querySelector(
+      `input[name="source_mode"][value="${saved.source_mode}"]`,
+    );
+    if (radio) radio.checked = true;
+  }
+
+  if (typeof saved.copy_source === "boolean") {
+    const copyCheckbox = document.querySelector("#copy_source");
+    if (copyCheckbox) copyCheckbox.checked = saved.copy_source;
+  }
+
+  if (typeof saved.output_dir === "string") outputDirInput.value = saved.output_dir;
+  if (typeof saved.copy_dir === "string") copyDirInput.value = saved.copy_dir;
+  if (typeof saved.existing_path === "string") existingPathInput.value = saved.existing_path;
+
+  // Refresh UI visibility based on the selected source mode.
+  const selected = document.querySelector('input[name="source_mode"]:checked')?.value;
+  sourceSections.forEach((section) => {
+    section.classList.toggle("hidden", section.dataset.mode !== selected);
+  });
+}
 
 /**
  * Load available options and configuration from the backend.
@@ -59,6 +121,7 @@ async function loadOptions() {
     optionsState.paths = data.paths || {};
     optionsState.config = data.config || null;
     populateModelOptions(data);
+    applyUiState(data);
     handleConfigState();
   } catch (error) {
     console.error(error);
@@ -125,12 +188,27 @@ sourceRadios.forEach((radio) => {
     sourceSections.forEach((section) => {
       section.classList.toggle("hidden", section.dataset.mode !== selected);
     });
+    if (selected) saveUiState({ source_mode: selected });
   });
 });
 
 sourceSections.forEach((section) => {
   const selected = document.querySelector('input[name="source_mode"]:checked')?.value;
   section.classList.toggle("hidden", section.dataset.mode !== selected);
+});
+
+modelSelect.addEventListener("change", () => saveUiState({ model: modelSelect.value }));
+languageSelect.addEventListener("change", () => saveUiState({ language: languageSelect.value }));
+outputDirInput.addEventListener("change", () => saveUiState({ output_dir: outputDirInput.value.trim() }));
+copyDirInput.addEventListener("change", () => saveUiState({ copy_dir: copyDirInput.value.trim() }));
+existingPathInput.addEventListener("change", () => saveUiState({ existing_path: existingPathInput.value.trim() }));
+copySourceCheckbox?.addEventListener("change", () =>
+  saveUiState({ copy_source: !!copySourceCheckbox.checked }),
+);
+
+regenerateBtn?.addEventListener("click", () => {
+  if (isLoading) return;
+  form?.requestSubmit();
 });
 
 browseButtons.forEach((button) => {
@@ -156,6 +234,13 @@ browserUpBtn.addEventListener("click", () => {
 browserSelectBtn.addEventListener("click", () => {
   if (!browserState.targetInput) return;
   browserState.targetInput.value = browserState.currentPath || "";
+
+  if (browserState.targetInput.id === "output-dir") {
+    saveUiState({ output_dir: browserState.targetInput.value });
+  } else if (browserState.targetInput.id === "copy-dir") {
+    saveUiState({ copy_dir: browserState.targetInput.value });
+  }
+
   closeBrowser();
 });
 
@@ -169,6 +254,9 @@ browserEntries.addEventListener("click", (event) => {
   } else if (entryType === "file" && browserState.selectType === "file") {
     if (browserState.targetInput) {
       browserState.targetInput.value = entryPath;
+      if (browserState.targetInput.id === "existing-path") {
+        saveUiState({ existing_path: entryPath });
+      }
     }
     closeBrowser();
   }
@@ -285,10 +373,23 @@ form?.addEventListener("submit", async (event) => {
   formData.set("output_dir", outputDirInput.value.trim());
   formData.set("copy_dir", copyDirInput.value.trim());
 
+  saveUiState({
+    model: modelSelect.value,
+    language: languageSelect.value,
+    source_mode: selectedMode,
+    copy_source: !!copySourceCheckbox?.checked,
+    output_dir: outputDirInput.value.trim(),
+    copy_dir: copyDirInput.value.trim(),
+    existing_path: selectedMode === "browse" ? existingPathInput.value.trim() : "",
+  });
+
   toggleLoading(true);
-  statusText.textContent = "Behandlar fila …";
+  statusText.classList.remove("hidden");
+  statusText.textContent =
+    selectedMode === "upload" ? "Lastar opp og genererer notat …" : "Genererer notat …";
   resultSection.hidden = true;
   notePreview.textContent = "";
+  if (resultMetaEl) resultMetaEl.textContent = "";
   try {
     const response = await fetch("/api/generate", {
       method: "POST",
@@ -300,8 +401,19 @@ form?.addEventListener("submit", async (event) => {
     }
     const payload = await response.json();
     statusText.textContent = `Ferdig! Notatet ligg i ${payload.outputDir}.`;
+    if (resultMetaEl) {
+      const languageLabel = payload.languageLabel || payload.language || "";
+      const model = payload.model || "";
+      resultMetaEl.textContent = `Model: ${model} • Språk: ${languageLabel}`.trim();
+    }
+
     notePathEl.textContent = payload.notePath;
     notePreview.textContent = payload.noteText;
+
+    // Hide the big centered status overlay once the preview is shown.
+    setTimeout(() => {
+      if (notePreview.textContent.trim()) statusText.classList.add("hidden");
+    }, 1200);
     if (payload.copiedPath) {
       copyPathEl.hidden = false;
       copyPathEl.textContent = `Presentasjonen vart kopiert til: ${payload.copiedPath}`;
