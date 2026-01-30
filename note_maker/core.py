@@ -135,47 +135,112 @@ def _get_client() -> OpenAI:
     return _CLIENT
 
 
-def extract_text_from_pptx(file_path: str) -> str:
-    """Extract text content from a PowerPoint presentation."""
+def extract_text_from_pptx(file_path: str, include_notes: bool = False) -> str:
+    """Extract text content from a PowerPoint presentation.
+
+    We preserve a bit of structure (section separators, title hints, bullet levels)
+    to give the model higher-quality input.
+    """
+
+    def _iter_text_frame_lines(text_frame) -> list[str]:
+        lines: list[str] = []
+        for paragraph in getattr(text_frame, "paragraphs", []) or []:
+            text = getattr(paragraph, "text", "")
+            text = text.strip() if text else ""
+            if not text:
+                continue
+            level = int(getattr(paragraph, "level", 0) or 0)
+            indent = "  " * max(level, 0)
+            # Represent paragraphs as bullets to keep hierarchy.
+            lines.append(f"{indent}- {text}")
+        return lines
+
     presentation = Presentation(file_path)
-    sections = []
-    for slide in presentation.slides:
-        slide_parts = []
+    sections: list[str] = []
+
+    for idx, slide in enumerate(presentation.slides, start=1):
+        slide_parts: list[str] = []
+
+        # Try to extract a title (if the presentation uses a title placeholder).
+        title_text = ""
+        title_shape = None
+        try:
+            title_shape = slide.shapes.title
+        except Exception:
+            title_shape = None
+
+        if title_shape is not None and getattr(title_shape, "has_text_frame", False):
+            title_text = title_shape.text_frame.text.strip() if title_shape.text_frame.text else ""
+
+        # Collect slide content.
+        content_lines: list[str] = []
         for shape in slide.shapes:
+            if title_shape is not None and shape is title_shape:
+                continue
+
             if getattr(shape, "has_text_frame", False):
-                for paragraph in shape.text_frame.paragraphs:
-                    text = "".join(run.text for run in paragraph.runs).strip()
-                    if text:
-                        slide_parts.append(text)
+                content_lines.extend(_iter_text_frame_lines(shape.text_frame))
             elif getattr(shape, "has_table", False):
                 for row in shape.table.rows:
                     cells = [cell.text.strip() for cell in row.cells if cell.text.strip()]
                     if cells:
-                        slide_parts.append(" | ".join(cells))
-        if slide_parts:
-            sections.append("\n".join(slide_parts))
+                        content_lines.append(" | ".join(cells))
+
+        notes_text = ""
+        if include_notes:
+            try:
+                if slide.has_notes_slide and slide.notes_slide and slide.notes_slide.notes_text_frame:
+                    notes_text = slide.notes_slide.notes_text_frame.text.strip()
+            except Exception:
+                notes_text = ""
+
+        if not title_text and not content_lines and not notes_text:
+            continue
+
+        slide_parts.append(f"=== SECTION {idx} ===")
+        if title_text:
+            slide_parts.append(f"TITLE: {title_text}")
+        if content_lines:
+            slide_parts.extend(content_lines)
+        if include_notes and notes_text:
+            slide_parts.append("NOTES:")
+            slide_parts.append(notes_text)
+
+        sections.append("\n".join(slide_parts))
+
     return "\n\n".join(sections)
 
 
 def extract_text_from_pdf(file_path: str) -> str:
-    """Extract text content from a PDF file."""
+    """Extract text content from a PDF file.
+
+    Adds page markers when the document has multiple pages to preserve structure.
+    """
+
     doc = fitz.open(file_path)
-    pages = []
+    pages: list[str] = []
     try:
-        for page in doc:
+        multi_page = doc.page_count > 1
+        for idx, page in enumerate(doc, start=1):
             page_text = page.get_text("text").strip()
-            if page_text:
+            if not page_text:
+                continue
+            if multi_page:
+                pages.append(f"=== PAGE {idx} ===\n{page_text}")
+            else:
                 pages.append(page_text)
     finally:
         doc.close()
+
     return "\n\n".join(pages)
 
 
-def extract_text(file_path: str) -> str:
+def extract_text(file_path: str, include_pptx_notes: bool = False) -> str:
     """Dispatch text extraction based on file extension."""
+
     suffix = Path(file_path).suffix.lower()
     if suffix == ".pptx":
-        return extract_text_from_pptx(file_path)
+        return extract_text_from_pptx(file_path, include_notes=include_pptx_notes)
     if suffix == ".pdf":
         return extract_text_from_pdf(file_path)
     raise ValueError("Ukjend filtype. Vel ei .pptx- eller .pdf-fil.")
@@ -260,9 +325,10 @@ def generate_note_from_file(
     language_key: str,
     copy_requested: bool = False,
     copy_dir: Optional[Path] = None,
+    include_pptx_notes: bool = False,
 ) -> GenerationResult:
     """Orchestrate the note generation process from a file."""
-    extracted_text = extract_text(str(source_path))
+    extracted_text = extract_text(str(source_path), include_pptx_notes=include_pptx_notes)
     note_text = generate_note_from_text(extracted_text, model_name, language_key)
     language_settings = _language_settings(language_key)
     note_path = save_note_text(

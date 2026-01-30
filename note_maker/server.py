@@ -287,6 +287,7 @@ async def api_generate(
     model: str = Form(DEFAULT_MODEL),
     language: str = Form(DEFAULT_LANGUAGE),
     copy_source: str | bool | None = Form(False),
+    include_notes: str | bool | None = Form(False, description="Include PowerPoint speaker notes (PPTX only)"),
     existing_path: str = Form("", description="Relative path to an existing file under HOST_INPUT_DIR"),
     output_dir: str = Form("", description="Relative path under HOST_OUTPUT_DIR"),
     copy_dir: str = Form("", description="Relative path under HOST_COPY_DIR"),
@@ -321,6 +322,7 @@ async def api_generate(
     output_target = _resolve_inside(HOST_OUTPUT_DIR, output_dir.strip()) if output_dir.strip() else HOST_OUTPUT_DIR
     copy_target = _resolve_inside(HOST_COPY_DIR, copy_dir.strip()) if copy_dir.strip() else HOST_COPY_DIR
     copy_requested = _bool_from_form(copy_source)
+    include_pptx_notes = _bool_from_form(include_notes)
     try:
         result: GenerationResult = generate_note_from_file(
             source_path,
@@ -330,6 +332,7 @@ async def api_generate(
             language_key=language,
             copy_requested=copy_requested,
             copy_dir=copy_target if copy_requested else None,
+            include_pptx_notes=include_pptx_notes,
         )
     except Exception as exc:  # broad: we want to surface user friendly errors
         raise HTTPException(status_code=400, detail=str(exc)) from exc

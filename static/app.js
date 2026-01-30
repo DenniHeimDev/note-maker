@@ -18,6 +18,7 @@ const existingPathInput = document.querySelector("#existing-path");
 const outputDirInput = document.querySelector("#output-dir");
 const copyDirInput = document.querySelector("#copy-dir");
 const copySourceCheckbox = document.querySelector("#copy_source");
+const includeNotesCheckbox = document.querySelector("#include-notes");
 const browseButtons = document.querySelectorAll(".browse-btn");
 
 const modal = document.querySelector("#browser-modal");
@@ -96,6 +97,9 @@ function applyUiState(data) {
 
   if (typeof saved.copy_source === "boolean" && copySourceCheckbox) {
     copySourceCheckbox.checked = saved.copy_source;
+  }
+  if (typeof saved.include_notes === "boolean" && includeNotesCheckbox) {
+    includeNotesCheckbox.checked = saved.include_notes;
   }
 
   if (typeof saved.output_dir === "string") outputDirInput.value = saved.output_dir;
@@ -205,6 +209,9 @@ copyDirInput.addEventListener("change", () => saveUiState({ copy_dir: copyDirInp
 existingPathInput.addEventListener("change", () => saveUiState({ existing_path: existingPathInput.value.trim() }));
 copySourceCheckbox?.addEventListener("change", () =>
   saveUiState({ copy_source: !!copySourceCheckbox.checked }),
+);
+includeNotesCheckbox?.addEventListener("change", () =>
+  saveUiState({ include_notes: !!includeNotesCheckbox.checked }),
 );
 
 regenerateBtn?.addEventListener("click", () => {
@@ -356,6 +363,7 @@ form?.addEventListener("submit", async (event) => {
     return;
   }
   const formData = new FormData(form);
+  formData.set("include_notes", includeNotesCheckbox?.checked ? "true" : "false");
   const selectedMode = document.querySelector('input[name="source_mode"]:checked')?.value || "upload";
   if (selectedMode === "upload") {
     if (!fileInput?.files?.length) {
@@ -380,6 +388,7 @@ form?.addEventListener("submit", async (event) => {
     language: languageSelect.value,
     source_mode: selectedMode,
     copy_source: !!copySourceCheckbox?.checked,
+    include_notes: !!includeNotesCheckbox?.checked,
     output_dir: outputDirInput.value.trim(),
     copy_dir: copyDirInput.value.trim(),
     existing_path: selectedMode === "browse" ? existingPathInput.value.trim() : "",
