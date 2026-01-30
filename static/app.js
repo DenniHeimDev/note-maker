@@ -403,7 +403,10 @@ form?.addEventListener("submit", async (event) => {
     if (resultMetaEl) {
       const languageLabel = payload.languageLabel || payload.language || "";
       const model = payload.model || "";
-      resultMetaEl.textContent = `Model: ${model} • Språk: ${languageLabel}`.trim();
+      const metaParts = [];
+      if (model) metaParts.push(`Model: ${model}`);
+      if (languageLabel) metaParts.push(`Språk: ${languageLabel}`);
+      resultMetaEl.textContent = metaParts.join(" • ");
     }
 
     notePathEl.textContent = payload.notePath;
