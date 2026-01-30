@@ -98,6 +98,33 @@ class TestExtractTextFromPdf:
         result = extract_text_from_pdf(str(pdf_path))
         assert "Test PDF Content" in result
 
+    def test_extract_text_from_pdf_table_extraction_is_best_effort(self, monkeypatch) -> None:
+        """Table extraction should never crash PDF text extraction."""
+
+        import note_maker.core as core
+
+        class DummyPage:
+            def get_text(self, kind: str) -> str:
+                assert kind == "text"
+                return "Hello"
+
+            def find_tables(self):
+                raise RuntimeError("boom")
+
+        class DummyDoc:
+            page_count = 1
+
+            def __iter__(self):
+                yield DummyPage()
+
+            def close(self):
+                return None
+
+        monkeypatch.setattr(core.fitz, "open", lambda _: DummyDoc())
+
+        result = core.extract_text_from_pdf("dummy.pdf")
+        assert result.strip() == "Hello"
+
     def test_extract_text_from_empty_pdf(self, tmp_path: Path) -> None:
         """Test extraction from an empty PDF."""
         import fitz
